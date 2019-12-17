@@ -3,11 +3,11 @@
 Program Name: Super Learner database creation
 Author: Hina Shah
 
-Purpose: Build a database with fetal biometry and gestational ages from 
+Purpose: Build a database with fetal biometry and gestational ages from
 the databse of Structured reports.
 
 Data Inputs: SR dataset from B1 (for the time being) that contains at least
-the following columns => 
+the following columns =>
 Filename - name of the structured report
 PatientID - ID of the patient
 studydttm - time stamp for the structured report file
@@ -26,7 +26,7 @@ Outputs: A unified database file for all biometry measurements: B1_BIOMETRY
 libname famdat  "F:\Users\hinashah\SASFiles";
 
 **** Path where the sas programs reside in ********;
-%let Path= F:\Users\hinashah\SASFiles;
+%let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
 %let maintablename = famli_b1_dicom_sr;
 
 **** create subset and some statistics ********;
