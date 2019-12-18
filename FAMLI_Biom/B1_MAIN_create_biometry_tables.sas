@@ -1,13 +1,14 @@
+
 /*************************************************************************
 
 Program Name: Super Learner database creation
 Author: Hina Shah
 
-Purpose: Build a database with fetal biometry and gestational ages from
+Purpose: Build a database with fetal biometry and gestational ages from 
 the databse of Structured reports.
 
 Data Inputs: SR dataset from B1 (for the time being) that contains at least
-the following columns =>
+the following columns => 
 Filename - name of the structured report
 PatientID - ID of the patient
 studydttm - time stamp for the structured report file

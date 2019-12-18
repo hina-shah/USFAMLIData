@@ -5,14 +5,15 @@
 %macro createGaTable(gatag=, gvarname=);
 	proc sql noprint;
 		create table work.&gvarname (drop=tagname) as 
-		select filename, PatientID, studydttm, tagname, tagcontent as &gvarname
+		select filename, PatientID, studydttm, tagname, tagcontent as ga
 			from &famli_table
 			where(tagname = "&gatag");
 	quit;
 
-	data famdat.&gvarname;
+	data famdat.&gvarname (drop=ga);
 	set work.&gvarname;
-	&gvarname = compress(&gvarname, '','A');
+	ga = compress(ga, '','A');
+	&gvarname = input(ga, 4.);
 	run;
 
 	proc delete data=work.&gvarname;
