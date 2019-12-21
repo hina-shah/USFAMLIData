@@ -1,58 +1,32 @@
 libname famdat '/folders/myfolders/';
-libname epic '/folders/myfolders/epic';
-%let missinggatable = b1_biom_missinggas;
-%let othertable = ob_dating;
+%let b1_biom_table = b1_biometry_20191218_133525;
+%let r4_table = unc_famli_r4data20190820;
 
-
-%macro estimateGAfromLMP(patid=, usdate=);
-	proc sql;
-		select min(usdiff) into :ga2 from
-		(
-		select user_entered_date, &usdate - user_entered_date as usdiff
-		from work.epic_lmp 
-		where pat_mrn_id EQ "&patid" 
-		having usdiff GE 0 ); 
-	quit;
-	
-	%put "&ga2";
-	&ga2
-
-
-/*	proc sql noprint;
-		create table work._lmps_ as
-		select min(usdiff) as ga from
-		(
-		select user_entered_date, &usdate - user_entered_date as usdiff
-		from work.epic_lmp 
-		where pat_mrn_id EQ "&patid" 
-		having usdiff GE 0 ); 
-*/	
-	
-%mend estimateGAfromLMP;
-
-proc sql noprint;
-	create table work.epic_lmp as select distinct pat_mrn_id, user_entered_date
-		from epic.&othertable 
-where ob_dating_event EQ 'LAST MENSTRUAL PERIOD' and user_entered_date NE .;
-
-data work.ga_lmp;
-	set famdat.&missinggatable(obs=25);
-	* try estimate ga from lmp ;
-	if not missing(PatientID) then
-		do;
-		call execute(catt('%estimateGAfromLMP(patid=', PatientID, ', usdate=', datepart(studydttm), ');'));
-		put "&ga2";
-		end;
-run;
-
-/*
+* Trying to fill gestational ages from the R4 database;
 proc sql;
-create table commonids as
-select distinct(a.PatientID)
-from famdat.&missinggatable as a inner join  epic.&othertable as b
-on a.PatientID = b.pat_mrn_id;
+create table famdat.b1_biom_missinggas as
+select filename, PatientID, studydttm
+from famdat.&b1_biom_table
+where missing(ga_lmp) and missing(ga_doc) and missing(ga_edd);
 
-proc sql;
-select * from epic.delivery
-where missing(gestational_age);
-*/
+create table r4_studies_b1missingga as
+select * from famdat.&r4_table where
+NameOfFile in (select substr(filename,1,27) from famdat.b1_biom_missinggas);
+
+create table famdat.b1_biom as
+select A.*, B.egadays as ga_unknown from
+famdat.&b1_biom_table as A left join 
+(select NameOfFile, ExamDate, medicalrecordnumber, egadays from r4_studies_b1missingga) as B 
+on B.NameOfFile = substr(A.filename,1,27) and datepart(A.studydttm) = B.ExamDate
+;
+
+create table famdat.b1_biom_missinggas_after as
+select filename, PatientID, studydttm
+from famdat.b1_biom
+where missing(ga_lmp) and missing(ga_doc) and missing(ga_edd) and missing(ga_unknown);
+
+create table famdat.b1_biom as
+select filename, PatientID, studydttm, ga_lmp, ga_doc, ga_edd, ga_unknown, * from
+famdat.b1_biom;
+
+quit;
