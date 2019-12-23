@@ -57,7 +57,7 @@ on A.PatientID = B.PatientID;
 quit;
 
 data b1_biom_fill_ga_more (drop=ga i);
-set work.b1_biom_startdates;
+set biom_with_startdate;
 array sdates startdate:;
 if (missing(ga_lmp) and missing(ga_edd) and missing(ga_doc) and missing(ga_unknown)) then
 do;

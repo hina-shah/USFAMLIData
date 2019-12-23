@@ -20,13 +20,12 @@ famdat.&b1_biom_table as A left join
 on B.NameOfFile = substr(A.filename,1,27) and datepart(A.studydttm) = B.ExamDate
 ;
 
+create table famdat.b1_biom as
+select distinct filename, PatientID, studydttm, ga_lmp, ga_doc, ga_edd, ga_unknown, * from
+famdat.b1_biom;
+
 create table famdat.b1_biom_missinggas_after as
 select filename, PatientID, studydttm
 from famdat.b1_biom
 where missing(ga_lmp) and missing(ga_doc) and missing(ga_edd) and missing(ga_unknown);
-
-create table famdat.b1_biom as
-select filename, PatientID, studydttm, ga_lmp, ga_doc, ga_edd, ga_unknown, * from
-famdat.b1_biom;
-
 quit;
