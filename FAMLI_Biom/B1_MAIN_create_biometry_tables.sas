@@ -29,6 +29,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 **** Path where the sas programs reside in ********;
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
 %let maintablename = famli_b1_dicom_sr;
+%let r4_table = unc_famli_r4data20190820;
 
 **** create subset and some statistics ********;
 %include "&Path/B1_dataset_processing.sas";
@@ -41,3 +42,9 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 **** merge all the tables ********;
 %include "&Path/B1_merge_tables.sas";
+
+**** fill any missing GAs using R4 database ********;
+%include "&Path/B1_missing_ga_fill.sas";
+
+**** create pregnancies table and extrapolate more gas ********;
+%include "&Path/B1_create_pregnancies.sas";

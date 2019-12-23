@@ -1,4 +1,4 @@
-libname famdat '/folders/myfolders/';
+*libname famdat '/folders/myfolders/';
 %let b1_biom_table = b1_biom;
 
 *For studies that do have a known gestational age, create a start date for the pregnancy;

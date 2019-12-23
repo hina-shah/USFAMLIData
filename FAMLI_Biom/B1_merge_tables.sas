@@ -1,4 +1,4 @@
-libname famdat  "F:\Users\hinashah\SASFiles";
+*libname famdat  "F:\Users\hinashah\SASFiles";
 
 * Macro to merge two datasets ;
 * Ideally would use a full join - but it was giving some errors during testing;
@@ -38,9 +38,11 @@ run ;
 
 data _null_;
 set temp_combined;
+%global biom_created_table;
 newvar = put(datetime(),myfmt.);
 completename = cats(&outputset, newvar);
 put completename=;
+call symput('biom_created_table', completename );
 if _n_=1 then
 	call execute( catt('%setdataset(setin=', varname, ', setout=', completename, ');'));
 else
