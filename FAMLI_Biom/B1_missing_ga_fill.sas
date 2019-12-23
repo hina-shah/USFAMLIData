@@ -24,6 +24,20 @@ create table famdat.b1_biom as
 select distinct filename, PatientID, studydttm, ga_lmp, ga_doc, ga_edd, ga_unknown, * from
 famdat.b1_biom;
 
+*Trying to remove duplicates using ids;
+create table dups as 
+select distinct ids, count_ids from ( 
+select substr(filename, 1,23) as ids, count( substr(filename, 1,23)) as count_ids 
+from famdat.b1_biom 
+group by substr(filename, 1,23) ) where 
+count_ids > 1 and count_ids < 100 order by count_ids desc;
+
+create table famdat.b1_deleted_records as
+select * from famdat.b1_biom where substr(filename, 1,23) in (select ids from dups);
+
+delete * from famdat.b1_biom where substr(filename, 1,23) in (select ids from dups);
+
+
 create table famdat.b1_biom_missinggas_after as
 select filename, PatientID, studydttm
 from famdat.b1_biom
