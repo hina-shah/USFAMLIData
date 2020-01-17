@@ -35,6 +35,10 @@ proc sql;
 select count(*) from (select distinct PatientID from famdat.b1_biom);
 quit;
 
+proc sql;
+select count(*) from (select distinct filename from famdat.famli_b1_dicom_sr where lastsrofstudy ne 1);
+quit;
+
 *Convert all pregnancies into a single column dataset;
 proc sql noprint;
 select name into :docsvar separated by ' '

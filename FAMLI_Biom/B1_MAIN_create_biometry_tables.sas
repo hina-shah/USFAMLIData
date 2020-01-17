@@ -1,7 +1,7 @@
 
 /*************************************************************************
 
-Program Name: Super Learner database creation
+Program Name: Super Learner fetal biometry database creation
 Author: Hina Shah
 
 Purpose: Build a database with fetal biometry and gestational ages from 
@@ -21,7 +21,7 @@ tagcontent - content of the tags
 Derivation - indicates if tagcontent is a measurement or derived value
 Equation - indicates the equation used to generate the derivation
 
-Outputs: A unified database file for all biometry measurements: B1_BIOMETRY
+Outputs: A unified database file for all biometry measurements: B1_BIOM
 ******************************************************************************/
 
 libname famdat  "F:\Users\hinashah\SASFiles";
