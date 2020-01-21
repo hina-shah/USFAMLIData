@@ -1,4 +1,4 @@
-/* 
+/*
  * Script to extract maternal hypertension and pregnancy induced hypertension information
  * from the Epic dataset.
  * Assuming existence of epic_maternal_info dataset along with the EPIC library
@@ -23,23 +23,23 @@ Any 2 instances of the following in the last 20 weeks of pregnancy but before ul
 	* Any medication from (Labetalol tablet, nifedipine ER, methyldopa, hydrochlorothiazide)
 	* 2 occurrences of ICD codes for under preeclampsia
 	* at least 2 occurrences of elevated blood pressures prior to 24 hrs of delivery
-	* positive labs 
+	* positive labs
 */
 
 /*
 *Get labs;
 proc sql;
 create table with_prev as
-select a.filename, a.PatientID, a.studydttm, a.DOC, a.delivery_date,
+select a.filename, a.PatientID, a.studyate, a.DOC, a.delivery_date,
 	 b.lab_name, b.result, datepart(b.result_time) as result_time format mmddyy10. from
 epic_maternal_info as a inner join
 (
-select distinct * from labs_pre where 
+select distinct * from labs_pre where
 (prxmatch('/(protein\/creat ratio)/', lowcase(result_test_name)) > 0 and result_num>0.3)
 ) as b on
-(a.PatientID = b.pat_mrn_id) and 
-(datepart(b.result_time) >= (a.DOC)) and 
-(datepart(b.result_time) <= datepart(a.studydttm)) and 
+(a.PatientID = b.pat_mrn_id) and
+(datepart(b.result_time) >= (a.DOC)) and
+(datepart(b.result_time) <= a.studydate) and
 a.ga < 140
 ;
 
@@ -49,22 +49,22 @@ a.ga < 140
 *Get medications;
 proc sql;
 create table with_prev as
-select a.filename, a.PatientID, a.studydttm, a.DOC, a.delivery_date, 
+select a.filename, a.PatientID, a.studydate, a.DOC, a.delivery_date,
 	b.med_Name, datepart(b.order_inst) as order_inst format mmddyy10. from
 epic_maternal_info as a inner join
 (
-select distinct * from 
-epic.medications 
+select distinct * from
+epic.medications
 where
 (prxmatch('/(labetalol.*tablet)|(nifedipine.*extended release)/', lowcase(medication_name)) >0 or
 prxmatch('/(methyldopa)|(hydrochlorothiazide)/', lowcase(med_name)) > 0)
 and
 prxmatch('/outpatient/', lowcase(med_type)) > 0
-) as b 
+) as b
 on
-(a.PatientID = b.pat_mrn_id) and 
+(a.PatientID = b.pat_mrn_id) and
 /*(datepart(b.order_inst) >= (a.DOC)) and */
-(datepart(b.order_inst) <= datepart(a.studydttm))
+(datepart(b.order_inst) <= a.studydate)
 and a.ga < 140
 ;
 
@@ -72,24 +72,24 @@ and a.ga < 140
 
 *Get ICD code counts;
 proc sql;
-create table with_prev as 
+create table with_prev as
 select a.*, b.chr_htn, b.contact_date from
 epic_maternal_info as a inner join
 epic_diagnosis_pre as b
 on
-(a.PatientID = b.pat_mrn_id) and 
+(a.PatientID = b.pat_mrn_id) and
 /*(b.contact_date >= (a.DOC)) and */
-(b.contact_date <= datepart(a.studydttm)) and
+(b.contact_date <= a.studydate) and
 b.chr_htn = 1 and
 a.ga < 140;
 %deleteRecordsOfPrevPregnancies(inputtable=with_prev,outputtable=diagnoses_excl,datevariable=contact_date);
 
 proc sql;
 create table diagnoses as
-select filename, PatientID, studydttm, sum(chr_htn) as count_occ 
+select filename, PatientID, studydate, sum(chr_htn) as count_occ
 from
-diagnoses_excl 
-group by PatientID, studydttm, filename;
+diagnoses_excl
+group by PatientID, studydate, filename;
 
 delete * from diagnoses where count_occ < 2;
 
@@ -99,8 +99,8 @@ select a.*, b.hypertension, datepart(b.recorded_time) as recorded_time format mm
 epic_maternal_info as a inner join
 bp_vitals as b
 on
-(a.PatientID = b.pat_mrn_id) and 
-(datepart(b.recorded_time) <= datepart(a.studydttm)) and
+(a.PatientID = b.pat_mrn_id) and
+(datepart(b.recorded_time) <= a.studydate) and
 (datepart(b.recorded_time) < a.delivery_date) and
 b.hypertension = 1 and
 a.ga < 140;
@@ -109,35 +109,35 @@ a.ga < 140;
 
 proc sql;
 create table vitals as
-select filename, PatientID, studydttm, sum(hypertension) as chr_htn_count_occ 
+select filename, PatientID, studydate, sum(hypertension) as chr_htn_count_occ
 from vitals_excl
-group by PatientID, studydttm, filename;
+group by PatientID, studydate, filename;
 
 delete * from vitals where chr_htn_count_occ < 2;
 
 *put everything together;
 proc sql;
 create table all_together as
-select * from 
-diagnoses OUTER UNION CORR 
-    (select * from medications OUTER UNION CORR 
+select * from
+diagnoses OUTER UNION CORR
+    (select * from medications OUTER UNION CORR
         /*(select * from labs OUTER UNION CORR*/ select * from vitals /*)*/);
 
 * Count number of rows per study -> which gives us study instances ;
 create table per_study_counts as
-select filename, PatientID, studydttm, count(*) as count_per_study
-from all_together 
-group by filename, PatientID, studydttm;
+select filename, PatientID, studydate, count(*) as count_per_study
+from all_together
+group by filename, PatientID, studydate;
 
 * Left join into the main table;
-create table epic_maternal_info as 
+create table epic_maternal_info as
 select a.*, b.count_per_study >= 2 as chronic_htn from
 epic_maternal_info as a left join
-per_study_counts as b 
+per_study_counts as b
 on
 a.PatientID = b.PatientID and
 a.filename = b.filename and
-a.studydttm = b.studydttm;
+a.studydate = b.studydate;
 
 /******************* Gestational Hypertension ******************/
 /* Pregnancy induced hypertension - this looks correct
@@ -145,126 +145,126 @@ Any 2 instances of the following in the last 20 weeks of pregnancy but before ul
 	* Any medication from (Labetalol tablet, nifedipine ER, methyldopa, hydrochlorothiazide)
 	* 2 occurrences of ICD codes for under preeclampsia
 	* at least 2 occurrences of elevated blood pressures prior to 24 hrs of delivery
-	* positive labs 
+	* positive labs
 	* Also require that either a lab or a ICD code diagnoses is present for that study
 */
 
 *Get labs;
 proc sql;
 create table labs as
-select a.filename, a.PatientID, a.studydttm, b.lab_name, b.result from
+select a.filename, a.PatientID, a.studydate, b.lab_name, b.result from
 epic_maternal_info as a inner join
 (
-select distinct * from labs_pre where 
+select distinct * from labs_pre where
 (prxmatch('/(protein\/creat ratio)/', lowcase(result_test_name)) > 0 and result_num>0.3)
 ) as b on
-(a.PatientID = b.pat_mrn_id) and 
-(datepart(b.result_time) >= (a.DOC)+140) and 
-(datepart(b.result_time) <= datepart(a.studydttm)) and 
+(a.PatientID = b.pat_mrn_id) and
+(datepart(b.result_time) >= (a.DOC)+140) and
+(datepart(b.result_time) <= a.studydate) and
 a.ga >= 140
 ;
 
-create table labs_count as 
-select filename, PatientID, studydttm, count(*) as labs_count
+create table labs_count as
+select filename, PatientID, studydate, count(*) as labs_count
 from
 labs
-group by filename, PatientID, studydttm;
+group by filename, PatientID, studydate;
 
 *Get medications;
 proc sql;
 create table medications as
-select a.filename, a.PatientID, a.studydttm, b.med_Name from
+select a.filename, a.PatientID, a.studydate, b.med_Name from
 epic_maternal_info as a inner join
 (
-select distinct * from 
-epic.medications 
-where 
+select distinct * from
+epic.medications
+where
 (prxmatch('/(labetalol.*intravenous)|(nifedipine 10 mg capsule)|(hydralazine.*injection)/', lowcase(medication_name)) >0 or
 prxmatch('/(magnesium sulfate)/', lowcase(med_name)) > 0) and prxmatch('/inpatient/', lowcase(med_type))>0
-)as b 
+)as b
 on
-(a.PatientID = b.pat_mrn_id) and 
-(datepart(b.order_inst) >= (a.DOC)+140) and 
-(datepart(b.order_inst) <= datepart(a.studydttm))
+(a.PatientID = b.pat_mrn_id) and
+(datepart(b.order_inst) >= (a.DOC)+140) and
+(datepart(b.order_inst) <= datepart(a.studydate))
 and a.ga >= 140
 ;
 
 *Get ICD code counts;
 proc sql;
 create table diagnoses as
-select filename, PatientID, studydttm, sum(preg_htn) as count_occ 
+select filename, PatientID, studydate, sum(preg_htn) as count_occ
 from
 (
 select a.*, b.preg_htn from
 epic_maternal_info as a inner join
 epic_diagnosis_pre as b
 on
-(a.PatientID = b.pat_mrn_id) and 
-(b.contact_date >= (a.DOC)+140) and 
-(b.contact_date <= datepart(a.studydttm)) and
+(a.PatientID = b.pat_mrn_id) and
+(b.contact_date >= (a.DOC)+140) and
+(b.contact_date <= a.studydate) and
 b.preg_htn = 1 and
-a.ga > 140) 
-group by PatientID, studydttm, filename;
+a.ga > 140)
+group by PatientID, studydate, filename;
 
 delete * from diagnoses where count_occ < 2;
 
 * Get the high blood pressure vitals;
 proc sql;
 create table vitals as
-select filename, PatientID, studydttm, sum(hypertension) as htn_count_occ 
+select filename, PatientID, studydate, sum(hypertension) as htn_count_occ
 from
 (
 select a.*, b.hypertension from
 epic_maternal_info as a inner join
 bp_vitals as b
 on
-(a.PatientID = b.pat_mrn_id) and 
-(datepart(b.recorded_time) >= (a.DOC)+140) and 
-(datepart(b.recorded_time) <= datepart(a.studydttm)) and
+(a.PatientID = b.pat_mrn_id) and
+(datepart(b.recorded_time) >= (a.DOC)+140) and
+(datepart(b.recorded_time) <= a.studydate) and
 (datepart(b.recorded_time) < a.delivery_date) and
 b.hypertension = 1 and
-a.ga > 140) 
-group by PatientID, studydttm, filename;
+a.ga > 140)
+group by PatientID, studydate, filename;
 
 delete * from vitals where htn_count_occ < 2;
 
 *put everything together;
 proc sql;
 create table all_together as
-select * from 
-diagnoses OUTER UNION CORR 
-    (select * from medications OUTER UNION CORR 
+select * from
+diagnoses OUTER UNION CORR
+    (select * from medications OUTER UNION CORR
         (select * from labs OUTER UNION CORR select * from vitals));
 
 * Count number of rows per study -> which gives us study instances ;
 create table per_study_counts as
-select filename, PatientID, studydttm, count(*) as count_per_study
-from all_together 
-group by filename, PatientID, studydttm;
+select filename, PatientID, studydate, count(*) as count_per_study
+from all_together
+group by filename, PatientID, studydate;
 
 create table per_study_counts_with_diag_labs as
 select a.*, b.count_occ from
 per_study_counts as a left join diagnoses as b
 on
 a.PatientID = b.PatientID and
-a.studydttm = b.studydttm and
+a.studydate = b.studydate and
 a.filename = b.filename;
 
 create table per_study_counts_with_diag_labs as
 select a.*, b.labs_count from
-per_study_counts_with_diag_labs as a left join labs_count as b 
-on 
+per_study_counts_with_diag_labs as a left join labs_count as b
+on
 a.PatientID = b.PatientID and
-a.studydttm = b.studydttm and
+a.studydate = b.studydate and
 a.filename = b.filename;
 
 * Left join into the main table;
-create table epic_maternal_info as 
-select a.*, 
+create table epic_maternal_info as
+select a.*,
 (b.count_per_study >= 2 and (b.labs_count>=1 or b.count_occ >=2)) as preg_induced_htn from
 epic_maternal_info as a left join
-per_study_counts_with_diag_labs as b 
+per_study_counts_with_diag_labs as b
 on
 a.PatientID = b.PatientID and
 a.filename = b.filename and
-a.studydttm = b.studydttm;
+a.studydate = b.studydate;

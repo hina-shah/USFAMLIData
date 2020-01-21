@@ -50,7 +50,7 @@ inner join
 (SELECT PatientID, DOC, MIN(recorded_time) as min_date
 from after
 GROUP BY PatientID, DOC) as b
-on a.PatientID=b.PatientID and a.DOC=b.DOC and b.min_date = a.recorded_time and b.min_date < DHMS(a.DOC+280,0,0,0);
+on a.PatientID=b.PatientID and a.DOC=b.DOC and b.min_date = a.recorded_time and b.min_date < DHMS(a.DOC+&ga_cycle.,0,0,0);
 
 * Combine the tables, and coalesce to use a weight recorded before the pregnancy when available;
 proc sql;
