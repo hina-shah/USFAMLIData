@@ -48,3 +48,31 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 **** create pregnancies table and extrapolate more gas ********;
 %include "&Path/B1_create_pregnancies.sas";
+
+*************** Adding labels to the data *******************;
+proc sql;
+	alter table famdat.b1_biom
+	modify filename label="Name of SR file",
+			PatientID label='ID of Patientes', 
+			studydate label='Date of the study/us',
+			ga_edd label='GA based on EDD from SR (ultrasound)',
+			ga_doc label = 'GA based on DOC from SR (ivf)',
+			ga_lmp label = 'GA based on LMP from SR',
+			ga_unknown label = 'GA from the R4 database', 
+			ga_extrap label = 'GA extrapolated from any of the other values',
+			fl_1 label = 'Femur lengths',
+			ac_1 label = 'Abdominal Circumferences',
+			bp_1 label = 'Biparietal Diameter',
+			afiq1_1 label = 'Amniotic Fluid Index (Quarter 1)',
+			afiq2_1 label = 'Amniotic Fluid Index (Quarter 2)',
+			afiq3_1 label = 'Amniotic Fluid Index (Quarter 3)',
+			afiq4_1 label = 'Amniotic Fluid Index (Quarter 4)',
+			crl_1 label = 'Crown Rump Length',
+			hc_1 label = 'Head Circumference',
+			mvp_1 label = 'Max Vertical Pocket',
+			tcd_1 label = 'Trans Cerebellar Diameter'
+			;
+quit;
+
+proc contents data=famdat.b1_biom varnum;
+run;

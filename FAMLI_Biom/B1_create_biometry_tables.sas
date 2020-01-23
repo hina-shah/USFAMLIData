@@ -23,7 +23,7 @@
 	* delete not needed tables;
 	proc delete data=temp_&biomvname;
 	run;
-	
+
 	* Convert data to numerical values, and convert mms to cms;
 	data WORK.temp_&biomvname._unique (drop=pos posmm tagcontent) ;
 	set WORK.temp_&biomvname._unique;

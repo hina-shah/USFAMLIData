@@ -3,7 +3,7 @@ libname famdat "F:\Users\hinashah\SASFiles";
 title 'Number of studies with any data from epic';
 proc sql;
 select count(*) from famdat.&mat_info_epic_table.;
-			
+
 title 'Number of studies with known tobacco use';
 proc sql;
 select count(*) from (select * from famdat.b1_maternal_info_epic where not missing(tobacco_use));

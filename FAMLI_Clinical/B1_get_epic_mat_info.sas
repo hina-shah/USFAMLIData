@@ -13,11 +13,12 @@ from famdat.b1_biom where filename not in
 (select filename from famdat.b1_maternal_info_pndb);
 
 create table epic_maternal_info as
-select distinct a.filename, a.PatientID, a.studydttm, a.ga, b.episode_working_edd, b.birth_date as mom_birth_date format mmddyy10.
-from 
+select distinct a.filename, a.PatientID, a.studydate, a.ga, b.episode_working_edd,
+				b.birth_date as mom_birth_date format mmddyy10.
+from
 lo_studies as a left join epic.ob_dating as b on
-(a.PatientID = b.pat_mrn_id) and (b.episode_working_edd > datepart(a.studydttm) ) 
-and (b.episode_working_edd < (datepart(a.studydttm) + (300-a.ga)));
+(a.PatientID = b.pat_mrn_id) and (b.episode_working_edd > a.studydate )
+and (b.episode_working_edd < (a.studydate + (&max_ga_cycle.-a.ga)));
 quit;
 
 data epic_maternal_info;
@@ -30,7 +31,7 @@ end;
 
 if not missing(episode_working_edd) then
 do;
-	DOC = episode_working_edd - 280;
+	DOC = episode_working_edd - &ga_cycle.;
 	format DOC mmddyy10.;
 end;
 run;
@@ -63,15 +64,15 @@ run;
 /****************** Create final table ******************/
 proc sql;
 create table famdat.&mat_info_epic_table. as
-select * from epic_maternal_info where not missing(episode_working_edd) or not missing(mom_birth_date) or 
-			mom_weight_oz > 0 or mom_height_in > 0 or not missing(tobacco_use) or not missing(fetal_growth_restriction) or 
+select * from epic_maternal_info where not missing(episode_working_edd) or not missing(mom_birth_date) or
+			mom_weight_oz > 0 or mom_height_in > 0 or not missing(tobacco_use) or not missing(fetal_growth_restriction) or
 			not missing(birth_wt_ounces) or hiv eq 1 or gest_diabetes eq 1 or diabetes eq 1 or chronic_htn eq 1 or preg_induced_htn eq 1;
 
 /******************** FINAL STATS *************************/
 proc sql;
-create table counts as 
-select filename, PatientID, ga, count(*) as cnt 
-from epic_maternal_info 
+create table counts as
+select filename, PatientID, ga, count(*) as cnt
+from epic_maternal_info
 group by filename, PatientID, ga;
 
 %include "&Path/B1_Epic_stats.sas";
