@@ -1,11 +1,10 @@
 libname famdat'/folders/myfolders/';
 libname epic '/folders/myfolders/epic';
 
-
 /********** PNDB **************/
 * Extract gestational age information from the PNDB database;
 proc sql;
-	create table famdat.b1_pndb_ga_table as
+	create table famdat.b1_ga_table_pndb as
 	select Mom_EpicMRN as PatientID,
 			M_PDT0101 as LMP, 
 			M_PDT0102 as EDC_LMP,
@@ -15,6 +14,27 @@ proc sql;
 			M_PDT0107 as Delivery_date
 	from famdat.pndb_famli_records
 	where not missing(Mom_EpicMRN);
+
+data famdat.b1_ga_table_pndb (drop= gaus galmp eddlmp diffedds);
+set famdat.b1_ga_table_pndb;
+	if missing(BEST_EDC) then do;
+		if not missing(US_DATE) and not missing(US_EDC) and not missing(LMP) then
+		do;
+			gaus = 280 - (US_EDC - US_DATE);
+			galmp = US_DATE - LMP;
+			eddlmp = lmp + 280;
+			BEST_EDC = eddlmp;
+			diffedds = abs(eddlmp - US_EDC);
+			if (galmp < 62 and diffedds > 5) |
+			(galmp < 111 and diffedds > 7) |
+			(galmp < 153 and diffedds > 10) | 
+			(galmp < 168 and diffedds >14) | 
+			(galmp >= 169 and diffedds > 21)
+			then
+				BEST_EDC = US_EDC;
+		end;
+	end;
+run;
 
 /********** EPIC **************/
 
@@ -282,7 +302,7 @@ proc sql;
 	run;
 %mend;
 
-%let outputtable = b1_epic_ga_table;
+%let outputtable = b1_ga_table_epic;
 data tablenames;
 length tablename $ 40;
 input tablename $;
@@ -292,6 +312,7 @@ b1_epic_lmps_last_entry
 b1_epic_emb_trans_last_entry
 b1_epic_ultrasounds
 ;
+run;
 
 data _null_;
 set tablenames;
@@ -302,7 +323,7 @@ else
 run;
 
 /********** SRs **************/
-data famdat.b1_sr_ga_table(keep=PatientID filename studydttm ga ga_type);
+data famdat.b1_ga_table_sr(keep=PatientID filename studydate ga ga_type edd);
 	set famdat.b1_biom;
 	ga = coalesce(ga_edd, ga_lmp, ga_doc);
 	if not missing(ga_edd) then ga_type = 'EDD/Ultrasound';
@@ -311,12 +332,132 @@ data famdat.b1_sr_ga_table(keep=PatientID filename studydttm ga ga_type);
 	if not missing(ga) then output;
 run;
 
+* Group the data by PatientID and sort by studydate ;
+proc sql;
+create table _tmp_sorted_sr_gas as 
+	select * from famdat.b1_ga_table_sr 
+	order by PatientID, studydate;
+
+proc transpose data=_tmp_sorted_sr_gas prefix=us_date_ 
+		out=work.tempusdates(drop=_name_);
+	var studydate;
+	by PatientID;
+run;
+
+proc sql noprint;
+	select name into :us_date_names separated by ', ' 
+	from dictionary.columns
+	where libname = 'WORK' and memname='TEMPUSDATES' and name contains 'us_date_';
+
+proc transpose data=_tmp_sorted_sr_gas prefix=us_ga_days_
+		out=work.tempusga(drop=_name_);
+	var ga;
+	by PatientID;
+run;
+
+proc sql noprint;
+	select name into :us_ga_days_names separated by ', ' 
+	from dictionary.columns
+	where libname = 'WORK' and memname='TEMPUSGA' and name contains 'us_ga_days_';
+
+
+proc sql;
+	create table sr_us_gas as 
+	select coalesce(a.PatientID, b.PatientID) as PatientID,
+		&us_date_names., &us_ga_days_names.
+	from 
+		work.tempusdates as a 
+		full join 
+		work.tempusga as b 
+	on a.PatientID = b.PatientID;
+
+data _null_;
+set sr_us_gas(obs=1);
+    array usd us_date_:;
+    call symput('n_dts',trim(left(put(dim(usd),8.))));
+run;
+
+data sr_us_gas_edds (drop=i j new_preg_ind edd_set prev_ga prev_sd diff_ga diff_days);
+set sr_us_gas;
+	array usd us_date_:;
+	array gas us_ga_days_:;
+	array edd(&n_dts.);
+	format edd1-edd&n_dts. mmddyy10.;
+	array js(&n_dts.);
+	
+	new_preg_ind = 1;
+	edd_set = 0;
+	j=1;
+	prev_ga = 0;
+	prev_sd = -1;
+	do i=1 to dim(usd); 
+		if missing(usd{i}) then leave; * NO more ultrasounds, leave;
+		
+		if gas{i} > prev_ga then do;
+			if edd_set = 0 and gas{i} >= 42 then do;
+				edd{j} = usd{i} - gas{i} + 280;
+				edd_set = 1;
+				j = j+1;
+			end;
+			else if edd_set = 1 and gas{i} >= 42 then do;
+				 * case when the ga is higher but from a different pregnancy ;
+				 diff_ga = gas{i} - prev_ga;
+				 diff_days = usd{i} - prev_sd;
+				 if abs(diff_ga - diff_days) > 21  then do;
+				 	* new pregnancy here ; 
+				 	edd{j} = usd{i} - gas{i} + 280;
+					edd_set = 1;
+					 j = j+1;
+				 end;
+			end;
+		end;
+		else if gas{i} <= prev_ga and (usd{i} - prev_sd) > 30 then do;
+			if edd_set = 1 then do; * Starting a new pregnancy;
+				edd_set = 0;
+				new_preg_ind = i;
+			end;
+			else do; * New pregnancy started, note down the edd for pregnancies whose us have ga < 42;
+				edd{j} = usd{new_preg_ind} - gas{new_preg_ind} + 280;
+				new_preg_ind = i;
+				j = j+1;
+			end;
+		end;
+		prev_ga = gas{i};
+		prev_sd = usd{i};
+		if edd_set = 1 then js{i} = j-1;
+		else js{i} = j;
+
+	end;
+	
+	if edd_set = 0 then do;
+		if prev_ga < 42 then edd{j} = usd{new_preg_ind} - gas{new_preg_ind} + 280;
+		else edd{j} = usd{i-1} - gas{i-1} + 280;
+		js{i-1} = j;
+	end;
+run;
+
+data famdat.b1_ga_table_sr_edds (keep=PatientID studydate ga edd) ;
+set sr_us_gas_edds;
+	array usd us_date_:;
+	array gas us_ga_days_:;
+	array edds edd:;
+	array jind js:;
+	do i=1 to dim(usd);
+		if missing(usd{i}) then leave; * NO more ultrasounds, leave;
+		studydate = usd{i};
+		format studydate mmddyy10.;
+		ga = gas{i};
+		edd = edds{jind{i}};
+		format edd mmddyy10.;
+		output;
+	end;
+run;
+
 /************ R4 ************/
 %let r4_table = unc_famli_r4data20190820;
 proc sql;
-	create table famdat.b1_r4_ga_table as
+	create table famdat.b1_ga_table_r4 as
 	select distinct medicalrecordnumber, put(input(medicalrecordnumber,12.),z12.)  as PatientID,
 			EDD, NameofFile, egadays, ExamDate, studydate
 	from famdat.&r4_table.
 	where not missing(egadays);
-/**/
