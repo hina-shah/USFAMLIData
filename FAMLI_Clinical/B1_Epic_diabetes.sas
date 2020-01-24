@@ -3,11 +3,8 @@
  * Any 1 instance of the following anytime before the study except for previous pregnancies + 6 weeks
  	* Positive result for beta hydroxybutyrate lab
  	* Positive result for A1c lab
- 	* Medication use of insulin or glyburide but before ultrasound and excluding non-stress-test days (1 day before and after this):
-	* ?Count glyburide all the time. Exclude insulin on days when a patient has a procedure that is not a non-stress test.
-	* Procedures information will be in the procedures data set. All procedures are listed there.
-	* I'm not on campus so cannot log on now, but later today I can look and provide further guidance. Basically, all procedures are there, and because insulin may be given during a procedure, we want to exclude instances when the insulin was given for a procedure. Also, I think prescribed medications are described somewhere as inpatient or outpatient - we could simply choose to just look at outpatient insulin scripts.
- 	* 2 instances of ICD codes/diagnoses, but before ultrasound.
+ 	* Medication use of insulin or glyburide prescribed outpatient
+ 	* At least 2 instances of diagnoses codes. 
  */
 
 
@@ -104,14 +101,11 @@ a.studydate = b.studydate;
 
 /******************* Gestational Diabetes ******************/
 /*
- * Any 1 instance of in the last 20 weeks of pregnancy:
+ * Any 1 instance of in the last 20 weeks of pregnancy before ultrasound:
  	* Positive result for beta hydroxybutyrate lab
  	* Positive result for A1c lab
- 	* Medication use of insulin or glyburide but before ultrasound and excluding non-stress-test days (1 day before and after this):
-	* ?Count glyburide all the time. Exclude insulin on days when a patient has a procedure that is not a non-stress test.
-	* Procedures information will be in the procedures data set. All procedures are listed there.
-	* I'm not on campus so cannot log on now, but later today I can look and provide further guidance. Basically, all procedures are there, and because insulin may be given during a procedure, we want to exclude instances when the insulin was given for a procedure. Also, I think prescribed medications are described somewhere as inpatient or outpatient - we could simply choose to just look at outpatient insulin scripts.
- 	* 2 instances of ICD codes/diagnoses, but before ultrasound.
+ 	* Medication use of insulin or glyburide prescribed outpatient
+	* At least 2 instances of diagnoses codes. 
  */
 
 *Get labs;

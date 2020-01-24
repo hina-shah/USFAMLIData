@@ -43,7 +43,7 @@ select distinct a.*, b.contact_date as contact_date_diag format mmddyy10., b.ref
 from
 epic_maternal_info as a inner join epic.diagnosis as b
 on
-a.PatientID = b.pat_mrn_id and prxmatch('/^(F17|305\.1).*/', ref_bill_code)=1 and
+a.PatientID = b.pat_mrn_id and prxmatch('/^(F17|305\.1|O99\.3|Z71\.6|Z72\.0).*/', ref_bill_code)=1 and
 b.contact_date <= a.episode_working_edd and
 b.contact_date >= a.DOC
 where a.PatientID in
