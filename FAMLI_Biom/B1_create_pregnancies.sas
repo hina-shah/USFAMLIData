@@ -8,7 +8,7 @@ set famdat.&b1_biom_table;
 ga = coalesce(ga_lmp, ga_edd, ga_doc, ga_unknown);
 if not missing(ga) then
 do;
-	startdate = datepart(studydttm) - ga;
+	startdate = studydate - ga;
 	format startdate mmddyy10.;
 end;
 run;
@@ -75,7 +75,7 @@ do;
 	do i=1 to dim(sdates);
 		if not missing(sdates{i}) then
 		do;
-			ga = datepart(studydttm) - sdates{i};
+			ga = studydate - sdates{i};
 			if ga > 0 and ga < 280 then
 				ga_extrap = ga;
 		end;
@@ -85,7 +85,7 @@ run;
 
 proc sql;
 create table famdat.b1_biom as
-select filename, PatientID, studydttm, ga_lmp, ga_doc, ga_edd, ga_unknown, ga_extrap, * from
+select filename, PatientID, studydate, ga_lmp, ga_doc, ga_edd, ga_unknown, ga_extrap, * from
 work.b1_biom_fill_ga_more;
 quit;
 
@@ -102,7 +102,7 @@ run;
 
 proc sql;
 create table famdat.b1_biom_missinggas_after as
-select filename, PatientID, studydttm
+select filename, PatientID, studydate
 from famdat.b1_biom
 where missing(ga_lmp) and missing(ga_doc) and missing(ga_edd) and missing(ga_unknown) and missing(ga_extrap);
 quit;

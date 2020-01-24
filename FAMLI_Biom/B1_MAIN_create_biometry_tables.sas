@@ -30,6 +30,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
 %let maintablename = famli_b1_dicom_sr;
 %let r4_table = unc_famli_r4data20190820;
+%let final_output_table = b1_biom;
 
 **** create subset and some statistics ********;
 %include "&Path/B1_dataset_processing.sas";
@@ -51,7 +52,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 *************** Adding labels to the data *******************;
 proc sql;
-	alter table famdat.b1_biom
+	alter table famdat.&final_output_table.
 	modify filename label="Name of SR file",
 			PatientID label='ID of Patientes', 
 			studydate label='Date of the study/us',
@@ -73,6 +74,12 @@ proc sql;
 			tcd_1 label = 'Trans Cerebellar Diameter'
 			;
 quit;
+
+data famdat.&final_output_table.;
+retain filename PatientID studydate ga_edd ga_doc ga_unknown ga_extrap
+	fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
+set famdat.&final_output_table.;
+run;
 
 proc contents data=famdat.b1_biom varnum;
 run;
