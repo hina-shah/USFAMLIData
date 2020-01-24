@@ -19,6 +19,7 @@ from
 lo_studies as a left join epic.ob_dating as b on
 (a.PatientID = b.pat_mrn_id) and (b.episode_working_edd > a.studydate )
 and (b.episode_working_edd < (a.studydate + (&max_ga_cycle.-a.ga)));
+
 quit;
 
 data epic_maternal_info;
@@ -31,6 +32,7 @@ end;
 
 if not missing(episode_working_edd) then
 do;
+
 	DOC = episode_working_edd - &ga_cycle.;
 	format DOC mmddyy10.;
 end;
@@ -64,6 +66,7 @@ run;
 /****************** Create final table ******************/
 proc sql;
 create table famdat.&mat_info_epic_table. as
+
 select * from epic_maternal_info where not missing(episode_working_edd) or not missing(mom_birth_date) or
 			mom_weight_oz > 0 or mom_height_in > 0 or not missing(tobacco_use) or not missing(fetal_growth_restriction) or
 			not missing(birth_wt_gms) or hiv eq 1 or gest_diabetes eq 1 or diabetes eq 1 or chronic_htn eq 1 or preg_induced_htn eq 1;

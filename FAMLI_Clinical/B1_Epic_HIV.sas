@@ -4,7 +4,9 @@
  * I have to look for any 2 instances of:
  * any lab that contains HIV with a positive result during pregnancy prior to the ultrasound
  * any lab with HIV RNA Quant with a positive result during pregnancy prior to the ultrasound
- * HIV RNA Quant ordered more than once (no matter the result?​) during pregnancy prior to the ultrasound. Yes, because a patient could have an undetectable viral load through the whole pregnancy so it could always be negative. And this is just one criteria, because they need two instances.
+ * HIV RNA Quant ordered more than once (no matter the result​) during pregnancy prior to the ultrasound. 
+	because a patient could have an undetectable viral load through the whole pregnancy so it 
+	could always be negative. And this is just one criteria, because they need two instances.
  * 2 instances of ICD diagnoses codes logged during pregnancy prior to the ultrasound
  * Any medication ordered prior to the ultrasound.
  */

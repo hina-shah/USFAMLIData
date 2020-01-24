@@ -19,11 +19,11 @@ run;
 /******************* Chronic Hypertension ******************/
 
 /* Chronic hypertension
-Any 2 instances of the following in the last 20 weeks of pregnancy but before ultrasound :
-	* Any medication from (Labetalol tablet, nifedipine ER, methyldopa, hydrochlorothiazide)
-	* 2 occurrences of ICD codes for under preeclampsia
+Any 2 instances of the following before ultrasound, but not in previous pregnancy + 6 weeks:
+	* Any medication from 'labetalol tablet', 'nifedipine ER,' 'methyldopa', or 'hydrochlorothiazide'
+		prescribed outpatient
+	* 2 occurrences of ICD codes for under hypertension
 	* at least 2 occurrences of elevated blood pressures prior to 24 hrs of delivery
-	* positive labs
 */
 
 /*
@@ -142,11 +142,12 @@ a.studydate = b.studydate;
 /******************* Gestational Hypertension ******************/
 /* Pregnancy induced hypertension - this looks correct
 Any 2 instances of the following in the last 20 weeks of pregnancy but before ultrasound :
-	* Any medication from (Labetalol tablet, nifedipine ER, methyldopa, hydrochlorothiazide)
+	* Any medication from 'labetalol IV', 'nifedipine 10 mg capsule', 'hydralazine IV', or 'magnesium sulfate'
+		as inpatient
 	* 2 occurrences of ICD codes for under preeclampsia
 	* at least 2 occurrences of elevated blood pressures prior to 24 hrs of delivery
 	* positive labs
-	* Also require that either a lab or a ICD code diagnoses is present for that study
+	* Also require that either a lab or a ICD code diagnoses is present before that study
 */
 
 *Get labs;
