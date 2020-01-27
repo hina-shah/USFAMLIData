@@ -1,5 +1,8 @@
-libname famdat 'F:\Users\hinashah\SASFiles';
-libname epic 'F:\Users\hinashah\SASFiles\epic';
+*libname famdat 'F:\Users\hinashah\SASFiles';
+*libname epic 'F:\Users\hinashah\SASFiles\epic';
+
+libname famdat '/folders/myfolders';
+libname epic '/folders/myfolders/epic';
 
 /********** PNDB **************/
 * Extract gestational age information from the PNDB database;
@@ -329,13 +332,13 @@ data famdat.b1_ga_table_sr(keep=PatientID filename studydate ga ga_type edd);
 	if not missing(ga_edd) then ga_type = 'EDD/Ultrasound';
 	if not missing(ga_lmp) then ga_type = 'LMP';
 	if not missing(ga_doc) then ga_type = 'DOC';
-	if not missing(ga) then output;
+	if not missing(ga) and ga >= 42 then output;
 run;
 
 * Group the data by PatientID and sort by studydate ;
 proc sql;
 create table _tmp_sorted_sr_gas as 
-	select * from famdat.b1_ga_table_sr 
+	select distinct * from famdat.b1_ga_table_sr 
 	order by PatientID, studydate;
 
 proc transpose data=_tmp_sorted_sr_gas prefix=us_date_ 
@@ -377,7 +380,7 @@ set sr_us_gas(obs=1);
     call symput('n_dts',trim(left(put(dim(usd),8.))));
 run;
 
-data sr_us_gas_edds (drop=i j new_preg_ind edd_set prev_ga prev_sd diff_ga diff_days);
+data sr_us_gas_edds;
 set sr_us_gas;
 	array usd us_date_:;
 	array gas us_ga_days_:;
@@ -385,54 +388,28 @@ set sr_us_gas;
 	format edd1-edd&n_dts. mmddyy10.;
 	array js(&n_dts.);
 	
-	new_preg_ind = 1;
-	edd_set = 0;
+	i=1;
 	j=1;
-	prev_ga = 0;
-	prev_sd = -1;
-	do i=1 to dim(usd); 
+	prev_ga = gas{i};
+	prev_sd = usd{i};
+	edd{j} = usd{i} - gas{i} + 280;
+	js{i} = j;
+	do i=2 to dim(usd);
 		if missing(usd{i}) then leave; * NO more ultrasounds, leave;
+		datediff = usd{i} - prev_sd;
+		gadiff = gas{i} - prev_ga;
 		
-		if gas{i} > prev_ga then do;
-			if edd_set = 0 and gas{i} >= 42 then do;
-				edd{j} = usd{i} - gas{i} + 280;
-				edd_set = 1;
-				j = j+1;
-			end;
-			else if edd_set = 1 and gas{i} >= 42 then do;
-				 * case when the ga is higher but from a different pregnancy ;
-				 diff_ga = gas{i} - prev_ga;
-				 diff_days = usd{i} - prev_sd;
-				 if abs(diff_ga - diff_days) > 21  then do;
-				 	* new pregnancy here ; 
-				 	edd{j} = usd{i} - gas{i} + 280;
-					edd_set = 1;
-					 j = j+1;
-				 end;
-			end;
-		end;
-		else if gas{i} <= prev_ga and (usd{i} - prev_sd) > 30 then do;
-			if edd_set = 1 then do; * Starting a new pregnancy;
-				edd_set = 0;
-				new_preg_ind = i;
-			end;
-			else do; * New pregnancy started, note down the edd for pregnancies whose us have ga < 42;
-				edd{j} = usd{new_preg_ind} - gas{new_preg_ind} + 280;
-				new_preg_ind = i;
-				j = j+1;
-			end;
-		end;
-		prev_ga = gas{i};
+		* If in the same pregnancy, then difference between ga's and
+		difference between dates would be roughly the same, if not exact.
+		Allowing for an error of 21 days for both gestational age measurements;
+		
+		if abs(datediff - gadiff) >= 42 then do;
+			j = j+1;
+			edd{j} = usd{i} - gas{i} + 280;
+		end;	
 		prev_sd = usd{i};
-		if edd_set = 1 then js{i} = j-1;
-		else js{i} = j;
-
-	end;
-	
-	if edd_set = 0 then do;
-		if prev_ga < 42 then edd{j} = usd{new_preg_ind} - gas{new_preg_ind} + 280;
-		else edd{j} = usd{i-1} - gas{i-1} + 280;
-		js{i-1} = j;
+		prev_ga = gas{i};
+		js{i} = j;
 	end;
 run;
 
