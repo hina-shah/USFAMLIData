@@ -1,4 +1,4 @@
-ßlibname famdat  "F:\Users\hinashah\SASFiles";
+libname famdat  "F:\Users\hinashah\SASFiles";
 
 %let tablename = b1_biometry_20191111_101654;
 
