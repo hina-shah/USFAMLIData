@@ -42,7 +42,7 @@ create table dups as
 	) 
 	where
 		count_ids > 1 and 
-		count_ids < 100 
+		count_ids < 100 /* Other format files, ex Src* */
 	order by count_ids desc;
 
 create table famdat.b1_deleted_records as

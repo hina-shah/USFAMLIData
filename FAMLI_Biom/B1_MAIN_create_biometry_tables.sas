@@ -29,26 +29,16 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 **** Path where the sas programs reside in ********;
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
 %let maintablename = famli_b1_dicom_sr;
-%let r4_table = unc_famli_r4data20190820;
 %let final_output_table = b1_biom;
 
-**** create subset and some statistics ********;
+**** create subset ********;
 %include "&Path/B1_dataset_processing.sas";
 
 **** create biometry tables ********;
 %include "&Path/B1_create_biometry_tables.sas";
 
-**** create GA tables ********;
-%include "&Path/B1_create_GA_tables.sas";
-
 **** merge all the tables ********;
 %include "&Path/B1_merge_tables.sas";
-
-**** fill any missing GAs using R4 database ********;
-%include "&Path/B1_missing_ga_fill.sas";
-
-**** create pregnancies table and extrapolate more gas ********;
-%include "&Path/B1_create_pregnancies.sas";
 
 *************** Adding labels to the data *******************;
 proc sql;
@@ -56,11 +46,6 @@ proc sql;
 	modify filename label="Name of SR file",
 			PatientID label='ID of Patientes', 
 			studydate label='Date of the study/us',
-			ga_edd label='GA based on EDD from SR (ultrasound)',
-			ga_doc label = 'GA based on DOC from SR (ivf)',
-			ga_lmp label = 'GA based on LMP from SR',
-			ga_unknown label = 'GA from the R4 database', 
-			ga_extrap label = 'GA extrapolated from any of the other values',
 			fl_1 label = 'Femur lengths',
 			ac_1 label = 'Abdominal Circumferences',
 			bp_1 label = 'Biparietal Diameter',
@@ -76,7 +61,7 @@ proc sql;
 quit;
 
 data famdat.&final_output_table.;
-retain filename PatientID studydate ga_edd ga_doc ga_unknown ga_extrap
+retain filename PatientID studydate
 	fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
 set famdat.&final_output_table.;
 run;
