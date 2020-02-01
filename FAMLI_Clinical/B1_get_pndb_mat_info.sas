@@ -78,42 +78,57 @@ run;
 * Find common pids in both the tables;
 proc sql;
 create table common_mrns as
-select distinct PatientID from famdat.&b1_biom_table where PatientID in
-(select
-MRN from pndb_preprocess where not missing(Mom_EpicMRN) );
+	select distinct PatientID 
+	from famdat.&ga_table. 
+	where PatientID in
+	(
+		select MRN 
+		from pndb_preprocess 
+		where not missing(Mom_EpicMRN) 
+	);
 
 
 * Find similar entries from the pndb database using mrns;
 create table studies_and_deliveries as
-select a.filename, a.PatientID, a.studydate, coalesce(a.ga_lmp, a.ga_edd, a.ga_doc, a.ga_unknown, a.ga_extrap) as ga, b.* from
-famdat.&b1_biom_table as a
-left join
-(
-select MRN,
-bestedd - &ga_cycle. as DOC format mmddyy10.,
-bestedd as episode_working_edd format mmddyy10.,
-D_Mom_DOB as mom_birth_date format mmddyy10.,
-MomAgeEDD as mom_age_edd format 3.2,
-M_PDT0107 as delivery_date format mmddyy10.,
-L_APP0108 as fetal_growth_restriction,
-N_PDT0108*16 as mom_weight_oz,
-N_PDT0109 as mom_height_in,
-S_INF0112 as birth_wt_gms,
-GABirth as birth_ga_days,
-G_APP0510 as hiv,
-case when F_PMH1515 > 0 then 'CURRENT SMOKER (PNDB)' end as tobacco_use,
-F_PMH1515 as tobacco_pak_per_day,
-A_APP0701 as chronic_htn,
-PregIndHTN as preg_induced_htn,
-PrevDiab as diabetes,
-GestDiab as gest_diabetes
-from pndb_preprocess where not missing(Mom_EpicMRN)
-) as b
-on a.PatientID = b.mrn;
+	select a.filename, a.PatientID, a.studydate, a.ga_edd as ga, b.* 
+	from
+		famdat.&ga_table. as a
+		inner join
+		(
+			select MRN,
+			bestedd - &ga_cycle. as DOC format mmddyy10.,
+			bestedd as episode_working_edd format mmddyy10.,
+			D_Mom_DOB as mom_birth_date format mmddyy10.,
+			MomAgeEDD as mom_age_edd format 3.2,
+			M_PDT0107 as delivery_date format mmddyy10.,
+			L_APP0108 as fetal_growth_restriction,
+			N_PDT0108*16 as mom_weight_oz,
+			N_PDT0109 as mom_height_in,
+			S_INF0112 as birth_wt_gms,
+			GABirth as birth_ga_days,
+			G_APP0510 as hiv,
+			case 
+				when F_PMH1515 > 0 then 'CURRENT SMOKER (PNDB)' 
+			end as tobacco_use,
+			F_PMH1515 as tobacco_pak_per_day,
+			A_APP0701 as chronic_htn,
+			PregIndHTN as preg_induced_htn,
+			PrevDiab as diabetes,
+			GestDiab as gest_diabetes
+			from pndb_preprocess 
+			where not missing(Mom_EpicMRN)
+		) as b
+		on a.PatientID = b.mrn and
+			a.episode_edd = b.episode_working_edd
+			and a.PatientID in 
+				(
+					select * from common_mrns
+				);
 
 * Select by pregnancy dates;
-create table famdat.&mat_info_pndb_table. (drop=MRN) as
-select * from studies_and_deliveries
-where PatientID in (select * from common_mrns) and
-delivery_date > studydate and
-delivery_date < studydate + (&max_ga_cycle.-ga);
+create table famdat.&mat_info_pndb_table.(drop=MRN) as
+	select * 
+	from studies_and_deliveries
+	where 
+		delivery_date > studydate and
+		delivery_date < studydate + (&max_ga_cycle.-ga);

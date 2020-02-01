@@ -8,18 +8,26 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 *Create a table with the studies that were not filled up by pndb;
 proc sql;
 create table lo_studies as
-select *, coalesce(ga_lmp, ga_doc, ga_edd, ga_unknown, ga_extrap) as ga
-from famdat.b1_biom where filename not in
-(select filename from famdat.b1_maternal_info_pndb);
+	select *
+	from famdat.&ga_table. 
+	where filename 
+	not in
+	(	
+		select filename 
+		from famdat.b1_maternal_info_pndb
+	);
 
 create table epic_maternal_info as
-select distinct a.filename, a.PatientID, a.studydate, a.ga, b.episode_working_edd,
-				b.birth_date as mom_birth_date format mmddyy10.
-from
-lo_studies as a left join epic.ob_dating as b on
-(a.PatientID = b.pat_mrn_id) and (b.episode_working_edd > a.studydate )
-and (b.episode_working_edd < (a.studydate + (&max_ga_cycle.-a.ga)));
-
+	select distinct a.filename, a.PatientID, a.studydate, 
+			a.ga_edd as ga, b.episode_working_edd,
+			b.birth_date as mom_birth_date format mmddyy10.
+	from
+		lo_studies as a 
+		left join 
+		epic.ob_dating as b 
+		on
+		(a.PatientID = b.pat_mrn_id) and 
+		(a.episode_edd = b.episode_working_edd);
 quit;
 
 data epic_maternal_info;

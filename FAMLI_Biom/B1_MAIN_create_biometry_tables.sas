@@ -28,11 +28,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 **** Path where the sas programs reside in ********;
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
-%let maintablename = famli_b1_dicom_sr;
 %let final_output_table = b1_biom;
-
-**** create subset ********;
-%include "&Path/B1_dataset_processing.sas";
 
 **** create biometry tables ********;
 %include "&Path/B1_create_biometry_tables.sas";

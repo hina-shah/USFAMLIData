@@ -17,56 +17,102 @@ one recorded within the first 8 weeks of pregnancy;
 note the most recent one (back in time);
 proc sql;
 create table before as
-select distinct a.PatientID, a.DOC, b.weight_oz, b.recorded_time
-from
-DOCs as a left join epic.vitals as b on
-a.PatientID = b.pat_mrn_id and b.recorded_time < DHMS(a.DOC,0,0,0)
-where not missing(b.weight_oz) and not missing(b.recorded_time)
-order by PatientID, DOC;
+	select distinct a.PatientID, a.DOC, b.weight_oz, b.recorded_time
+	from
+		DOCs as a 
+		left join 
+		epic.vitals as b 
+	on
+	a.PatientID = b.pat_mrn_id and
+	b.recorded_time <= DHMS(a.DOC,11,59,59)
+	where not missing(b.weight_oz) and 
+		not missing(b.recorded_time)
+	order by PatientID, DOC;
 
 create table maxbefore as
-select a.PatientID, a.DOC, a.weight_oz, b.max_date
-from before as a
-inner join
-(SELECT PatientID, DOC, MAX(recorded_time) as max_date
-from before
-GROUP BY PatientID, DOC) as b
-on a.PatientID=b.PatientID and a.DOC=b.DOC and b.max_date = a.recorded_time and b.max_date > DHMS(a.DOC-365, 0,0,0);
+	select distinct a.PatientID, a.DOC, a.weight_oz, b.max_date
+	from 
+		before as a
+		inner join
+		(
+			SELECT PatientID, DOC, MAX(recorded_time) as max_date
+			from before
+			GROUP BY PatientID, DOC
+		) as b
+	on a.PatientID=b.PatientID and 
+		a.DOC=b.DOC and 
+		b.max_date = a.recorded_time and 
+		b.max_date > DHMS(a.DOC-365, 0,0,0);
 
 * from the DOCs left join with weight using the date within the pregnancy and
 note the earliest one (forward in time);
 create table after as
-select distinct a.PatientID, a.DOC, b.weight_oz, b.recorded_time
-from
-DOCs as a left join epic.vitals as b on
-a.PatientID = b.pat_mrn_id and b.recorded_time >= DHMS(a.DOC,0,0,0)
-where not missing(b.weight_oz) and not missing(b.recorded_time)
-order by PatientID, DOC;
+	select distinct a.PatientID, a.DOC, b.weight_oz, b.recorded_time
+	from
+		DOCs as a 
+		left join 
+		epic.vitals as b 
+	on
+	a.PatientID = b.pat_mrn_id and 
+	b.recorded_time > DHMS(a.DOC,11,59,59)
+	where not missing(b.weight_oz) and 
+		not missing(b.recorded_time)
+	order by PatientID, DOC;
 
 create table minafter as
-select a.PatientID, a.DOC, a.weight_oz, b.min_date
-from after as a
-inner join
-(SELECT PatientID, DOC, MIN(recorded_time) as min_date
-from after
-GROUP BY PatientID, DOC) as b
-on a.PatientID=b.PatientID and a.DOC=b.DOC and b.min_date = a.recorded_time and b.min_date < DHMS(a.DOC+&ga_cycle.,0,0,0);
+	select a.PatientID, a.DOC, a.weight_oz, b.min_date
+	from after as a
+	inner join
+	(
+		SELECT PatientID, DOC, MIN(recorded_time) as min_date
+		from after
+		GROUP BY PatientID, DOC
+	) as b
+	on a.PatientID=b.PatientID and 
+		a.DOC=b.DOC and 
+		b.min_date = a.recorded_time and 
+		b.min_date < DHMS(a.DOC+&ga_cycle.,0,0,0);
 
 * Combine the tables, and coalesce to use a weight recorded before the pregnancy when available;
 proc sql;
 create table weights as
-select coalesce(a.PatientID, b.PatientID) as PatientID, coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
-coalesce(a.weight_oz, b.weight_oz) as mom_weight_oz, datepart(coalesce(a.max_date, b.min_date)) as wt_rec_date format mmddyy10.
-from maxbefore as a full join minafter as b
-on a.PatientID = b.PatientID and a.DOC=b.DOC;
+	select coalesce(a.PatientID, b.PatientID) as PatientID, 
+		coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
+		coalesce(a.weight_oz, b.weight_oz) as mom_weight_oz
+		from 
+			maxbefore as a 
+			full join 
+			minafter as b
+		on a.PatientID = b.PatientID and a.DOC=b.DOC;
+
+data weights;
+set weights;
+row = _n_;
+run;
+
+proc sql;
+create table weights as
+	select a.PatientID, a.DOC, a.mom_weight_oz
+		from 
+			weights as a 
+			inner join 
+			( 
+				select PatientID, DOC, max(row) as max_line
+				from weights
+				group by PatientID, DOC
+			) as b
+		on a.PatientID = b.PatientID and 
+			a.DOC=b.DOC and
+			a.row = b.max_line;
 
 * Join with the maternal info dataset ;
 create table epic_maternal_info as
-select distinct a.*, b.mom_weight_oz
-from
-epic_maternal_info as a left join weights as b
-on
-a.PatientID=b.PatientID and a.DOC=b.DOC;
+	select distinct a.*, b.mom_weight_oz
+	from
+		epic_maternal_info as a 
+		left join weights as b
+	on
+	a.PatientID=b.PatientID and a.DOC=b.DOC;
 
 /******************* HEIGHTS ******************/
 
@@ -80,51 +126,98 @@ note the most recent one (back in time);
 
 proc sql;
 create table before as
-select distinct a.PatientID, a.DOC, b.height_in, b.recorded_time
-from
-DOCs as a left join epic.vitals as b on
-a.PatientID = b.pat_mrn_id and b.recorded_time < DHMS(a.DOC,0,0,0)
-where not missing(b.height_in) and not missing(b.recorded_time)
-order by PatientID, DOC;
+	select distinct a.PatientID, a.DOC, b.height_in, b.recorded_time
+	from
+		DOCs as a 
+		left join 
+		epic.vitals as b 
+	on
+	a.PatientID = b.pat_mrn_id and b.recorded_time <= DHMS(a.DOC,11,59,59)
+	where 
+		not missing(b.height_in) and 
+		not missing(b.recorded_time)
+	order by PatientID, DOC;
 
 create table maxbefore as
-select a.PatientID, a.DOC, a.height_in, b.max_date
-from before as a
-inner join
-(SELECT PatientID, DOC, MAX(recorded_time) as max_date
-from before
-GROUP BY PatientID, DOC) as b
-on a.PatientID=b.PatientID and a.DOC=b.DOC and b.max_date = a.recorded_time;
+	select a.PatientID, a.DOC, a.height_in, b.max_date
+	from 
+		before as a
+		inner join	
+		(
+			SELECT PatientID, DOC, MAX(recorded_time) as max_date
+			from before
+			GROUP BY PatientID, DOC
+		) as b
+	on a.PatientID=b.PatientID and 
+		a.DOC=b.DOC and 
+		b.max_date = a.recorded_time;
 
 create table after as
-select distinct a.PatientID, a.DOC, b.height_in, b.recorded_time
-from
-DOCs as a left join epic.vitals as b on
-a.PatientID = b.pat_mrn_id and b.recorded_time >= DHMS(a.DOC,0,0,0)
-where not missing(b.height_in) and not missing(b.recorded_time)
-order by PatientID, DOC;
+	select distinct a.PatientID, a.DOC, b.height_in, b.recorded_time
+	from
+		DOCs as a 
+		left join 
+		epic.vitals as b 
+	on
+	a.PatientID = b.pat_mrn_id and b.recorded_time > DHMS(a.DOC,11,59,59)
+	where 
+		not missing(b.height_in) and 
+		not missing(b.recorded_time)
+	order by PatientID, DOC;
 
 create table minafter as
-select a.PatientID, a.DOC, a.height_in, b.min_date
-from after as a
-inner join
-(SELECT PatientID, DOC, MIN(recorded_time) as min_date
-from after
-GROUP BY PatientID, DOC) as b
-on a.PatientID=b.PatientID and a.DOC=b.DOC and b.min_date = a.recorded_time;
+	select a.PatientID, a.DOC, a.height_in, b.min_date
+	from 
+		after as a
+		inner join
+		(
+			SELECT PatientID, DOC, MIN(recorded_time) as min_date
+			from after
+			GROUP BY PatientID, DOC
+		) as b
+	on a.PatientID=b.PatientID and 
+		a.DOC=b.DOC and
+		b.min_date = a.recorded_time;
 
 proc sql;
 create table heights as
-select coalesce(a.PatientID, b.PatientID) as PatientID, coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
-coalesce(a.height_in, b.height_in) as mom_height_in, datepart(coalesce(a.max_date, b.min_date)) as ht_rec_date format mmddyy10.
-from maxbefore as a full join minafter as b
-on
-a.PatientID = b.PatientID and a.DOC=b.DOC;
+	select coalesce(a.PatientID, b.PatientID) as PatientID, 
+		coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
+		coalesce(a.height_in, b.height_in) as mom_height_in, 
+		datepart(coalesce(a.max_date, b.min_date)) as ht_rec_date format mmddyy10.
+	from 
+		maxbefore as a 
+		full join 
+		minafter as b
+	on
+	a.PatientID = b.PatientID and a.DOC=b.DOC;
+
+data heights;
+set heights;
+row = _n_;
+run;
+
+proc sql;
+create table heights as
+	select a.PatientID, a.DOC, a.mom_height_in
+		from 
+			heights as a 
+			inner join 
+			( 
+				select PatientID, DOC, max(row) as max_line
+				from heights
+				group by PatientID, DOC
+			) as b
+		on a.PatientID = b.PatientID and 
+			a.DOC=b.DOC and
+			a.row = b.max_line;
 
 * Join with the maternal info dataset ;
 create table epic_maternal_info as
-select distinct a.*, b.mom_height_in
-from
-epic_maternal_info as a left join heights as b
-on
-a.PatientID=b.PatientID and a.DOC=b.DOC;
+	select distinct a.*, b.mom_height_in
+	from
+		epic_maternal_info as a 
+		left join 
+		heights as b
+	on
+	a.PatientID=b.PatientID and a.DOC=b.DOC;

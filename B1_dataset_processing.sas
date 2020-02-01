@@ -52,7 +52,7 @@ create table famdat.b1_deleted_records as
 			select ids from dups
 		);
 
-delete * from famdat.b1_biom 
+delete * from famdat.b1_patmrn_studytm 
 	where substr(filename, 1,23) in 
 		(
 			select ids from dups

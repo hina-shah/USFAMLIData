@@ -23,7 +23,7 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Clinical;
 
 ****** Names of the main tables to be used ********;
-%let b1_biom_table = b1_biom;
+%let ga_table = b1_ga_table;
 %let pndb_table = pndb_famli_records;
 
 ****** Names of output tables to be generated *****;
@@ -63,7 +63,7 @@ run;
 proc sql;
 	alter table famdat.&final_output_table.
 	modify filename label="Name of SR file",
-			ga label='Gestational ages from SR/R4, coalesced from biometry table',
+			ga label='Gestational ages from estimated EDD from various sources',
 			PatientID label='ID of Patientes',
 			studydate label='Date of the study/us',
 			DOC label='Date of Conception (derived from episode working edd)',

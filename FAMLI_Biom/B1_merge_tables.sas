@@ -45,10 +45,10 @@ else
 	call execute( catt('%mergedatasets(set1=', completename, ', set2=', varname, ', outset=', completename, ');'));
 run;
 
-%mergedatasets(set1=b1_patmrn_studytm, set2=&biom_created_table., outset=&final_output_table.);
+%mergedatasets(set1=b1_ga_table, set2=&biom_created_table., outset=&final_output_table.);
 
 data famdat.&final_output_table.;
-set famdat.&final_output_table.(drop=studydttm);
+set famdat.&final_output_table.(drop=studydttm episode_edd edd_source);
 run;
 
 proc sql;
@@ -61,5 +61,4 @@ delete *
 		missing(afiq2_1) and missing(afiq3_1) and 
 		missing(afiq4_1) and missing(hc_1) and 
 		missing(mvp_1);
-	
 	
