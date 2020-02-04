@@ -79,14 +79,37 @@ create table famdat.&ga_final_table. as
 		) as b
 		on a.filename = b.filename and a.PatientID = b.PatientID and a.episode_edd = max_episode_edd;
 
-/*
+* Remove non-singleton pregnancy records;
 proc sql;
-create table famdat.&ga_final_table. as
-	select filename, PatientID, studydate, max(episode_edd) as episode_edd format mmddyy10., edd_source
-	from all_US_pndb_epic_sr_r4
-	group by filename, PatientID, studydate;
-*/
+create table alerts as
+	select distinct a.*, b.alert
+	from
+		famdat.&ga_final_table as a
+		left join
+		famdat.famli_b1_subset as b
+	on
+	a.filename = b.filename and a.PatientID = b.PatientID;
 
+create table to_be_deleted as
+	select distinct filename 
+	from 
+		famdat.&ga_final_table. as a
+		inner join
+		(
+			select PatientID, episode_edd, count(*) as ns_count
+			from 
+			alerts
+			where prxmatch('/non-singleton/', alert) > 0
+			group by PatientID, episode_edd
+		) as b
+		on a.PatientID = b.PatientID and a.episode_edd = b.episode_edd and b.ns_count > 0;
+
+delete * from famdat.&ga_final_table. 
+	where filename in (select * from to_be_deleted);
+delete * from famdat.b1_patmrn_studytm 
+	where filename in (select * from to_be_deleted);
+	
+* Create missing ga studies, and pregnancy list;
 proc sql;
 create table famdat.b1_missing_ga_studies as
 	select filename, PatientID, studydate
@@ -106,9 +129,6 @@ create table per_study_count as
 	group by filename, PatientID, studydate;
 quit;
 
-
-* Double check the gestational ages by edd vs a given ga
-	to remove studies that are incosistent against a DOC ;
 data famdat.&ga_final_table.;
 set famdat.&ga_final_table.;
 if not missing(episode_edd) then do;
@@ -126,6 +146,3 @@ create table famdat.b1_pregnancies as
 
 proc delete data=all_US_pndb all_US_pndb_epic all_US_pndb_epic_sr all_US_pndb_epic_sr_r4;
 	run;
-* Remove all pregnancies with a max ga that is less that 42 
-days or set ga as -1 for these so that these are 
-marked so in the other datasets ;

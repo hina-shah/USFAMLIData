@@ -18,16 +18,19 @@ create table famdat.famli_b1_subset as
 	where 
 	(
 		missing(alert) or 
-		alert = 'age < 18 years'
+		alert = 'age < 18 years' or
+		alert = 'age < 18 years; non-singleton' or
+		alert = 'non-singleton'
 	) and 
 	lastsrofstudy=1 and 
 	anybiometry=1;
 
 %let famli_table = famdat.famli_b1_subset;
+%let famli_studies = famdat.b1_patmrn_studytm;
 
 /* This will store instances of a structured report*/
 proc sql noprint;
-create table famdat.b1_patmrn_studytm as
+create table &famli_studies as
 	select distinct PatientID, studydttm, studydate, filename
 	from &famli_table;
 
@@ -37,7 +40,7 @@ create table dups as
 	from 
 	(
 		select substr(filename, 1,23) as ids, count( substr(filename, 1,23)) as count_ids
-		from famdat.b1_patmrn_studytm
+		from &famli_studies
 		group by substr(filename, 1,23) 
 	) 
 	where
@@ -46,21 +49,21 @@ create table dups as
 	order by count_ids desc;
 
 create table famdat.b1_deleted_records as
-	select * from famdat.b1_patmrn_studytm 
+	select * from &famli_studies 
 	where substr(filename, 1,23) in 
 		(
 			select ids from dups
 		);
 
-delete * from famdat.b1_patmrn_studytm 
+delete * from &famli_studies 
 	where substr(filename, 1,23) in 
 		(
 			select ids from dups
 		);
 
 
-data famdat.b1_patmrn_studytm(drop= s studydttm);
-	set famdat.b1_patmrn_studytm;
+data &famli_studies(drop= s studydttm);
+	set &famli_studies;
 	s = substr(filename, 14,10);
 	if prxmatch('/[0-9]{4}-[0-9]{2}-[0-9]{2}/',s) = 1 then
 		studydate = input(s, yymmdd10.);

@@ -45,6 +45,7 @@ else
 	call execute( catt('%mergedatasets(set1=', completename, ', set2=', varname, ', outset=', completename, ');'));
 run;
 
+* merge with the gestational age table;
 %mergedatasets(set1=b1_ga_table, set2=&biom_created_table., outset=&final_output_table.);
 
 data famdat.&final_output_table.;
