@@ -29,7 +29,7 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 ****** Names of output tables to be generated *****;
 %let mat_info_pndb_table = b1_maternal_info_pndb;
 %let mat_info_epic_table = b1_maternal_info_epic;
-%let final_output_table = b1_maternal_info;
+%let mat_final_output_table = b1_maternal_info;
 
 ******* Define global values *******;
 %let max_ga_cycle = 308;
@@ -43,25 +43,25 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 
 ***** Merge the tables into one ********;
 proc sql;
-	create table famdat.&final_output_table. as
+	create table famdat.&mat_final_output_table. as
 	select * from famdat.&mat_info_pndb_table.
 		OUTER UNION CORR
 		select * from famdat.&mat_info_epic_table.;
 
-data famdat.&final_output_table.;
+data famdat.&mat_final_output_table.;
 retain filename ga PatientID studydate DOC episode_working_edd ga_from_edd delivery_date
 	mom_birth_date mom_age_edd mom_weight_oz mom_height_in
 	birth_wt_gms birth_ga_days
 	hiv tobacco_use tobacco_pak_per_day smoking_quit_days
 	chronic_htn preg_induced_htn
 	diabetes gest_diabetes;
-set famdat.&final_output_table.;
+set famdat.&mat_final_output_table.;
 	ga_from_edd  = &ga_cycle. - (episode_working_edd - studydate);
 run;
 
 *************** Adding labels to the data *******************;
 proc sql;
-	alter table famdat.&final_output_table.
+	alter table famdat.&mat_final_output_table.
 	modify filename label="Name of SR file",
 			ga label='Gestational ages from estimated EDD from various sources',
 			PatientID label='ID of Patientes',
@@ -88,12 +88,12 @@ proc sql;
 quit;
 
 *************** Show contents *******************;
-proc contents data=famdat.&final_output_table. varnum;
+proc contents data=famdat.&mat_final_output_table. varnum;
 run;
 
 *********** Statistics on the complete table ****************;
 title 'Statistics on gestational age from Structured reports and R4';
-proc univariate data=famdat.&final_output_table.;
+proc univariate data=famdat.&mat_final_output_table.;
 var ga;
 run;
 
@@ -101,12 +101,12 @@ title "Minimum and Maximum Dates";
 proc sql;
 	select "studydate" label="Date variable", min(studydate)
 		format=YYMMDD10. label="Minimum date" , max(studydate)
-		format=YYMMDD10. label="Maximum date" from famdat.&final_output_table.;
+		format=YYMMDD10. label="Maximum date" from famdat.&mat_final_output_table.;
 quit;
 
 %macro runFreqOnFinalTable(title=,varname=);
 	title "&title.";
-	proc freq data=famdat.&final_output_table.;
+	proc freq data=famdat.&mat_final_output_table.;
 	TABLES &varname. / missing;
 	run;
 %mend;

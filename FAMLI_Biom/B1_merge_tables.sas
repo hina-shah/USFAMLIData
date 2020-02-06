@@ -46,15 +46,15 @@ else
 run;
 
 * merge with the gestational age table;
-%mergedatasets(set1=b1_ga_table, set2=&biom_created_table., outset=&final_output_table.);
+%mergedatasets(set1=b1_ga_table, set2=&biom_created_table., outset=&biom_final_output_table.);
 
-data famdat.&final_output_table.;
-set famdat.&final_output_table.(drop=studydttm episode_edd edd_source);
+data famdat.&biom_final_output_table.;
+set famdat.&biom_final_output_table.(drop=studydttm episode_edd edd_source);
 run;
 
 proc sql;
 delete *
-	from famdat.&final_output_table
+	from famdat.&biom_final_output_table.
 	where
 		missing(fl_1) and missing(crl_1) and 
 		missing(bp_1) and missing(ac_1) and 

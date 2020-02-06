@@ -28,7 +28,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 **** Path where the sas programs reside in ********;
 %let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
-%let final_output_table = b1_biom;
+%let biom_final_output_table = b1_biom;
 
 **** create biometry tables ********;
 %include "&Path/B1_create_biometry_tables.sas";
@@ -38,7 +38,7 @@ libname famdat  "F:\Users\hinashah\SASFiles";
 
 *************** Adding labels to the data *******************;
 proc sql;
-	alter table famdat.&final_output_table.
+	alter table famdat.&biom_final_output_table.
 	modify filename label="Name of SR file",
 			PatientID label='ID of Patientes', 
 			studydate label='Date of the study/us',
@@ -56,11 +56,11 @@ proc sql;
 			;
 quit;
 
-data famdat.&final_output_table.;
+data famdat.&biom_final_output_table.;
 retain filename PatientID studydate
 	fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
-set famdat.&final_output_table.;
+set famdat.&biom_final_output_table.;
 run;
 
-proc contents data=famdat.b1_biom varnum;
+proc contents data=famdat.&biom_final_output_table. varnum;
 run;

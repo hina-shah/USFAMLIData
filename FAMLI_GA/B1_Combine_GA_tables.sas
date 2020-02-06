@@ -108,7 +108,9 @@ delete * from famdat.&ga_final_table.
 	where filename in (select * from to_be_deleted);
 delete * from famdat.b1_patmrn_studytm 
 	where filename in (select * from to_be_deleted);
-	
+delete * from &famli_table
+	where filename in (select * from to_be_deleted);
+
 * Create missing ga studies, and pregnancy list;
 proc sql;
 create table famdat.b1_missing_ga_studies as
