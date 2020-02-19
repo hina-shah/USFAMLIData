@@ -1,4 +1,3 @@
-*libname famdat  "F:\Users\hinashah\SASFiles";
 
 * Macro to merge two datasets ;
 * Ideally would use a full join - but it was giving some errors during testing;
@@ -26,7 +25,7 @@
 	run;
 %mend;
 
-%let outputset = 'b1_biometry_';
+%let outputset = 'ds_biometry_';
 
 proc format;
   picture myfmt low-high = '%Y%0m%0d_%0H%0M%0S' (datatype = datetime) ;
@@ -61,5 +60,6 @@ delete *
 		missing(tcd_1) and missing(afiq1_1) and 
 		missing(afiq2_1) and missing(afiq3_1) and 
 		missing(afiq4_1) and missing(hc_1) and 
-		missing(mvp_1);
+		missing(mvp_1)
+;
 	

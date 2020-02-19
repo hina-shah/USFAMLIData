@@ -14,8 +14,11 @@ create table tobacco_use as
 		left join 
 		epic.social_hx as b
 	on
-	a.PatientID = b.pat_mrn_id and b.contact_date <= a.studydate
-	where b.smoking_tob_use_c in ('CURRENT EVERY DAY SMOKER', 'NEVER SMOKER', 'FORMER SMOKER');
+		a.PatientID = b.pat_mrn_id and 
+		b.contact_date <= a.studydate
+	where 
+		b.smoking_tob_use_c in ('CURRENT EVERY DAY SMOKER', 'NEVER SMOKER', 'FORMER SMOKER')
+;
 
 *Extract the most recent one before ultrasound;
 create table tobacco_use_max as
@@ -28,9 +31,11 @@ create table tobacco_use_max as
 			from tobacco_use
 			GROUP BY PatientID, studydate
 		) as b
-	on a.PatientID=b.PatientID and 
+	on 
+		a.PatientID=b.PatientID and 
 		a.studydate = b.studydate and 
-		b.max_date = a.contact_date;
+		b.max_date = a.contact_date
+;
 
 data tobacco_use_max;
 set tobacco_use_max;
@@ -48,9 +53,11 @@ create table tobacco_use_max as
 				from tobacco_use_max
 				group by PatientID, studydate
 			) as b
-		on a.PatientID = b.PatientID and 
+		on 
+			a.PatientID = b.PatientID and 
 			a.studydate=b.studydate and
-			a.row = b.max_line;
+			a.row = b.max_line
+;
 
 
 *Integrate back into epic_maternal_info;
@@ -61,7 +68,10 @@ create table tobacco_use_social_hx as
 		left join 
 		tobacco_use_max as b
 	on
-	a.PatientID = b.PatientID and a.studydate = b.studydate and a.filename = b.filename;
+		a.PatientID = b.PatientID and 
+		a.studydate = b.studydate and 
+		a.filename = b.filename
+;
 
 proc sql;
 *For rest of the patients extract diagnoses from the diagnosis dataset, and count the number of times the diagnoses
@@ -88,7 +98,8 @@ create table occurence_counts as
 				where missing(smoking_tob_use_c)
 			)
 	)
-	group by PatientID, studydate;
+	group by PatientID, studydate
+;
 
 *Count the number of times the ICD9 codes were entered before an us and extract rows with count > 2;
 *Coalesce/merge based on the findings;
@@ -114,4 +125,5 @@ create table epic_maternal_info as
 		a.PatientID = b.PatientID and 
 		a.studydate = b.studydate and 
 		a.filename = b.filename and
-		b.icd_count > 1;
+		b.icd_count > 1
+;

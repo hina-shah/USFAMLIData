@@ -1,4 +1,3 @@
-libname famdat "F:\Users\hinashah\SASFiles";
 
 title 'Number of Patients in B1 with SR';
 proc sql;

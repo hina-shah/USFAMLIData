@@ -85,7 +85,8 @@ create table common_mrns as
 		select MRN 
 		from pndb_preprocess 
 		where not missing(Mom_EpicMRN) 
-	);
+	)
+;
 
 
 * Find similar entries from the pndb database using mrns;
@@ -118,12 +119,14 @@ create table studies_and_deliveries as
 			from pndb_preprocess 
 			where not missing(Mom_EpicMRN)
 		) as b
-		on a.PatientID = b.mrn and
-			a.episode_edd = b.episode_working_edd
-			and a.PatientID in 
-				(
-					select * from common_mrns
-				);
+		on 
+			a.PatientID = b.mrn and
+			a.episode_edd = b.episode_working_edd and 
+			a.PatientID in 
+			(
+				select * from common_mrns
+			)
+;
 
 * Select by pregnancy dates;
 create table famdat.&mat_info_pndb_table.(drop=MRN) as
@@ -131,4 +134,5 @@ create table famdat.&mat_info_pndb_table.(drop=MRN) as
 	from studies_and_deliveries
 	where 
 		delivery_date > studydate and
-		delivery_date < studydate + (&max_ga_cycle.-ga);
+		delivery_date < studydate + (&max_ga_cycle.-ga)
+;

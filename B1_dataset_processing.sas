@@ -12,7 +12,7 @@ The 'alert' field will have either of the following notes:
 */
 
 proc sql noprint; 
-create table famdat.famli_b1_subset as
+create table &famli_table. as
 	select *
 	from famdat.&maintablename 
 	where 
@@ -25,14 +25,11 @@ create table famdat.famli_b1_subset as
 	lastsrofstudy=1 and 
 	anybiometry=1;
 
-%let famli_table = famdat.famli_b1_subset;
-%let famli_studies = famdat.b1_patmrn_studytm;
-
 /* This will store instances of a structured report*/
 proc sql noprint;
-create table &famli_studies as
+create table &famli_studies. as
 	select distinct PatientID, studydttm, studydate, filename
-	from &famli_table;
+	from &famli_table.;
 
 *Trying to remove duplicates using ids;
 create table dups as
@@ -55,15 +52,15 @@ create table famdat.b1_deleted_records as
 			select ids from dups
 		);
 
-delete * from &famli_studies 
+delete * from &famli_studies. 
 	where substr(filename, 1,23) in 
 		(
 			select ids from dups
 		);
 
 
-data &famli_studies(drop= s studydttm);
-	set &famli_studies;
+data &famli_studies.(drop= s studydttm);
+	set &famli_studies.;
 	s = substr(filename, 14,10);
 	if prxmatch('/[0-9]{4}-[0-9]{2}-[0-9]{2}/',s) = 1 then
 		studydate = input(s, yymmdd10.);

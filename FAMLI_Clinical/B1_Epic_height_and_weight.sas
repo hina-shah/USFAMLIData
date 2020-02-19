@@ -23,11 +23,13 @@ create table before as
 		left join 
 		epic.vitals as b 
 	on
-	a.PatientID = b.pat_mrn_id and
-	b.recorded_time <= DHMS(a.DOC,11,59,59)
-	where not missing(b.weight_oz) and 
+		a.PatientID = b.pat_mrn_id and
+		b.recorded_time <= DHMS(a.DOC,11,59,59)
+	where 
+		not missing(b.weight_oz) and 
 		not missing(b.recorded_time)
-	order by PatientID, DOC;
+	order by PatientID, DOC
+;
 
 create table maxbefore as
 	select distinct a.PatientID, a.DOC, a.weight_oz, b.max_date
@@ -39,10 +41,12 @@ create table maxbefore as
 			from before
 			GROUP BY PatientID, DOC
 		) as b
-	on a.PatientID=b.PatientID and 
+	on 
+		a.PatientID=b.PatientID and 
 		a.DOC=b.DOC and 
 		b.max_date = a.recorded_time and 
-		b.max_date > DHMS(a.DOC-365, 0,0,0);
+		b.max_date > DHMS(a.DOC-365, 0,0,0)
+;
 
 * from the DOCs left join with weight using the date within the pregnancy and
 note the earliest one (forward in time);
@@ -53,25 +57,30 @@ create table after as
 		left join 
 		epic.vitals as b 
 	on
-	a.PatientID = b.pat_mrn_id and 
-	b.recorded_time > DHMS(a.DOC,11,59,59)
-	where not missing(b.weight_oz) and 
+		a.PatientID = b.pat_mrn_id and 
+		b.recorded_time > DHMS(a.DOC,11,59,59)
+	where 
+		not missing(b.weight_oz) and 
 		not missing(b.recorded_time)
-	order by PatientID, DOC;
+	order by PatientID, DOC
+;
 
 create table minafter as
 	select a.PatientID, a.DOC, a.weight_oz, b.min_date
-	from after as a
-	inner join
-	(
-		SELECT PatientID, DOC, MIN(recorded_time) as min_date
-		from after
-		GROUP BY PatientID, DOC
-	) as b
-	on a.PatientID=b.PatientID and 
+	from 
+		after as a
+		inner join
+		(
+			SELECT PatientID, DOC, MIN(recorded_time) as min_date
+			from after
+			GROUP BY PatientID, DOC
+		) as b
+	on 
+		a.PatientID=b.PatientID and 
 		a.DOC=b.DOC and 
 		b.min_date = a.recorded_time and 
-		b.min_date < DHMS(a.DOC+&ga_cycle.,0,0,0);
+		b.min_date < DHMS(a.DOC+&ga_cycle.,0,0,0)
+;
 
 * Combine the tables, and coalesce to use a weight recorded before the pregnancy when available;
 proc sql;
@@ -79,11 +88,14 @@ create table weights as
 	select coalesce(a.PatientID, b.PatientID) as PatientID, 
 		coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
 		coalesce(a.weight_oz, b.weight_oz) as mom_weight_oz
-		from 
-			maxbefore as a 
-			full join 
-			minafter as b
-		on a.PatientID = b.PatientID and a.DOC=b.DOC;
+	from 
+		maxbefore as a 
+		full join 
+		minafter as b
+	on 
+		a.PatientID = b.PatientID and 
+		a.DOC=b.DOC
+;
 
 data weights;
 set weights;
@@ -93,17 +105,18 @@ run;
 proc sql;
 create table weights as
 	select a.PatientID, a.DOC, a.mom_weight_oz
-		from 
-			weights as a 
-			inner join 
-			( 
-				select PatientID, DOC, max(row) as max_line
-				from weights
-				group by PatientID, DOC
-			) as b
-		on a.PatientID = b.PatientID and 
-			a.DOC=b.DOC and
-			a.row = b.max_line;
+	from 
+		weights as a 
+		inner join 
+		( 
+			select PatientID, DOC, max(row) as max_line
+			from weights
+			group by PatientID, DOC
+		) as b
+	on 
+		a.PatientID = b.PatientID and 
+		a.DOC=b.DOC and
+		a.row = b.max_line;
 
 * Join with the maternal info dataset ;
 create table epic_maternal_info as
@@ -112,7 +125,8 @@ create table epic_maternal_info as
 		epic_maternal_info as a 
 		left join weights as b
 	on
-	a.PatientID=b.PatientID and a.DOC=b.DOC;
+		a.PatientID=b.PatientID and 
+		a.DOC=b.DOC;
 
 /******************* HEIGHTS ******************/
 
@@ -132,7 +146,8 @@ create table before as
 		left join 
 		epic.vitals as b 
 	on
-	a.PatientID = b.pat_mrn_id and b.recorded_time <= DHMS(a.DOC,11,59,59)
+		a.PatientID = b.pat_mrn_id and 
+		b.recorded_time <= DHMS(a.DOC,11,59,59)
 	where 
 		not missing(b.height_in) and 
 		not missing(b.recorded_time)
@@ -148,7 +163,8 @@ create table maxbefore as
 			from before
 			GROUP BY PatientID, DOC
 		) as b
-	on a.PatientID=b.PatientID and 
+	on 
+		a.PatientID=b.PatientID and 
 		a.DOC=b.DOC and 
 		b.max_date = a.recorded_time;
 
@@ -159,7 +175,8 @@ create table after as
 		left join 
 		epic.vitals as b 
 	on
-	a.PatientID = b.pat_mrn_id and b.recorded_time > DHMS(a.DOC,11,59,59)
+		a.PatientID = b.pat_mrn_id and 
+		b.recorded_time > DHMS(a.DOC,11,59,59)
 	where 
 		not missing(b.height_in) and 
 		not missing(b.recorded_time)
@@ -175,7 +192,8 @@ create table minafter as
 			from after
 			GROUP BY PatientID, DOC
 		) as b
-	on a.PatientID=b.PatientID and 
+	on 
+		a.PatientID=b.PatientID and 
 		a.DOC=b.DOC and
 		b.min_date = a.recorded_time;
 
@@ -190,7 +208,8 @@ create table heights as
 		full join 
 		minafter as b
 	on
-	a.PatientID = b.PatientID and a.DOC=b.DOC;
+		a.PatientID = b.PatientID and 
+		a.DOC=b.DOC;
 
 data heights;
 set heights;
@@ -200,17 +219,19 @@ run;
 proc sql;
 create table heights as
 	select a.PatientID, a.DOC, a.mom_height_in
-		from 
-			heights as a 
-			inner join 
-			( 
-				select PatientID, DOC, max(row) as max_line
-				from heights
-				group by PatientID, DOC
-			) as b
-		on a.PatientID = b.PatientID and 
-			a.DOC=b.DOC and
-			a.row = b.max_line;
+	from 
+		heights as a 
+		inner join 
+		( 
+			select PatientID, DOC, max(row) as max_line
+			from heights
+			group by PatientID, DOC
+		) as b
+	on 
+		a.PatientID = b.PatientID and 
+		a.DOC=b.DOC and
+		a.row = b.max_line
+;
 
 * Join with the maternal info dataset ;
 create table epic_maternal_info as
@@ -220,4 +241,6 @@ create table epic_maternal_info as
 		left join 
 		heights as b
 	on
-	a.PatientID=b.PatientID and a.DOC=b.DOC;
+		a.PatientID=b.PatientID and 
+		a.DOC=b.DOC
+;

@@ -59,7 +59,8 @@ create table rna_quant_counts as
 			(datepart(b.result_time) <= a.studydate) and
 			b.hiv_orders = 1
 	)
-	group by PatientID, studydate, filename;
+	group by PatientID, studydate, filename
+;
 
 delete * 
 	from rna_quant_counts 
@@ -81,7 +82,8 @@ create table medications as
 	on
 		(a.PatientID = b.pat_mrn_id) and
 		(datepart(b.order_inst) >= (a.DOC)) and
-		(datepart(b.order_inst) <= a.studydate);
+		(datepart(b.order_inst) <= a.studydate)
+;
 
 *Get ICD code counts;
 proc sql;
@@ -104,7 +106,8 @@ create table diagnoses as
 
 delete * 
 	from diagnoses 
-	where count_occ < 2;
+	where count_occ < 2
+;
 
 *put everything together;
 proc sql;
@@ -114,7 +117,8 @@ create table all_together as
 		diagnoses OUTER UNION CORR
     		(select * from medications OUTER UNION CORR
         		(select * from labs OUTER UNION CORR
-            			select * from rna_quant_counts));
+            			select * from rna_quant_counts))
+;
 
 * Count number of rows per study -> which gives us study instances ;
 create table per_study_counts as
@@ -123,7 +127,8 @@ create table per_study_counts as
 		studydate, 
 		count(*) as count_per_study
 	from all_together
-	group by filename, PatientID, studydate;
+	group by filename, PatientID, studydate
+;
 
 * Left join into the main table;
 create table epic_maternal_info as
@@ -135,4 +140,5 @@ create table epic_maternal_info as
 	on
 		a.PatientID = b.PatientID and
 		a.filename = b.filename and
-		a.studydate = b.studydate;
+		a.studydate = b.studydate
+;

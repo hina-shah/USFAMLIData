@@ -24,17 +24,11 @@ Equation - indicates the equation used to generate the derivation
 Outputs: A unified database file for all biometry measurements: B1_BIOM
 ******************************************************************************/
 
-libname famdat  "F:\Users\hinashah\SASFiles";
-
-**** Path where the sas programs reside in ********;
-%let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Biom;
-%let biom_final_output_table = b1_biom;
-
 **** create biometry tables ********;
-%include "&Path/B1_create_biometry_tables.sas";
+%include "&BiomPath/B1_create_biometry_tables.sas";
 
 **** merge all the tables ********;
-%include "&Path/B1_merge_tables.sas";
+%include "&BiomPath/B1_merge_tables.sas";
 
 *************** Adding labels to the data *******************;
 proc sql;

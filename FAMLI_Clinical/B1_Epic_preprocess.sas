@@ -9,14 +9,14 @@
 *These will be converted to pregnancy diagnoses at a later stage;
 proc sql;
 create table epic_diagnosis_pre as
-select pat_mrn_id, study_id, contact_date, ref_bill_code, icd_code_set, dx_name,
-find(dx_name, 'poor fetal growth', 'i') > 0 as fetal_growth_restriction,
-(find(dx_name, 'human immunodeficiency virus', 'i') >0 and prxmatch('/^(B20|042|O98\.7|V08|Z21).*/', ref_bill_code)) as hiv,
-prxmatch('/^(E08|E09|E10|E11|E13|O24\.0|O24\.1|O24\.3|O24\.8|250|648\.0).*/', ref_bill_code) as diabetes,
-prxmatch('/^(O24\.4|648\.83).*/', ref_bill_code) as gest_diabetes,
-prxmatch('/^(I10|401\.0|401\.1|401\.9|O10|O11|642\.0|642\.1|642\.3|642\.9).*/', ref_bill_code) as chr_htn,
-prxmatch('/^(O11|O13|O14|O15|642\.[3-7]).*/', ref_bill_code) as preg_htn
-from epic.diagnosis;
+	select pat_mrn_id, study_id, contact_date, ref_bill_code, icd_code_set, dx_name,
+		find(dx_name, 'poor fetal growth', 'i') > 0 as fetal_growth_restriction,
+		(find(dx_name, 'human immunodeficiency virus', 'i') >0 and prxmatch('/^(B20|042|O98\.7|V08|Z21).*/', ref_bill_code)) as hiv,
+		prxmatch('/^(E08|E09|E10|E11|E13|O24\.0|O24\.1|O24\.3|O24\.8|250|648\.0).*/', ref_bill_code) as diabetes,
+		prxmatch('/^(O24\.4|648\.83).*/', ref_bill_code) as gest_diabetes,
+		prxmatch('/^(I10|401\.0|401\.1|401\.9|O10|O11|642\.0|642\.1|642\.3|642\.9).*/', ref_bill_code) as chr_htn,
+		prxmatch('/^(O11|O13|O14|O15|642\.[3-7]).*/', ref_bill_code) as preg_htn
+	from epic.diagnosis;
 quit;
 
 data labs_pre;
@@ -26,9 +26,10 @@ run;
 
 proc sql;
 create table pregnancies as
-select distinct PatientID, DOC, coalesce(delivery_date, episode_working_edd) + 42 as end_of_preg format mmddyy10.
-from epic_maternal_info where not missing(DOC)
-order by PatientID;
+	select distinct PatientID, DOC, coalesce(delivery_date, episode_working_edd) + 42 as end_of_preg format mmddyy10.
+	from epic_maternal_info 
+	where not missing(DOC)
+	order by PatientID;
 
 proc sort data= pregnancies out=WORK.SORTTempTableSorted;
 	by PatientID DOC;
@@ -48,10 +49,14 @@ run;
 
 proc sql;
 create table famdat.b1_Epic_pregnancies_arr as
-select a.*, b.* from
-b1_pregnancies_arr_DOC as a full join
-b1_pregnancies_arr_edd as b on
-a.PatientID = b.PatientID;
+	select a.*, b.* 
+	from
+		b1_pregnancies_arr_DOC as a 
+		full join
+		b1_pregnancies_arr_edd as b 
+	on
+		a.PatientID = b.PatientID
+;
 
 
 proc sql noprint;
@@ -69,10 +74,13 @@ quit;
 %macro deleteRecordsOfPrevPregnancies(inputtable=,outputtable=,datevariable=);
 	proc sql;
 	create table with_prev_endstart as
-	select a.*, b.* from
-	&inputtable as a left join famdat.b1_epic_pregnancies_arr as b
+	select a.*, b.* 
+	from
+		&inputtable as a 
+		left join 
+		famdat.b1_epic_pregnancies_arr as b
 	on
-	a.PatientID = b.PatientID;
+		a.PatientID = b.PatientID;
 
 	*Mark the ones that are in a previous pregnancy;
 	data marked (drop=i);

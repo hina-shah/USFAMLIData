@@ -15,31 +15,11 @@ ones of importance are ob_dating, labs, medications, vitals, delivery, social_hx
 Outputs: A unified database file for all biometry measurements: B1_MATERNAL_INFO
 ******************************************************************************/
 
-
-libname famdat  "F:\Users\hinashah\SASFiles";
-libname epic "F:\Users\hinashah\SASFiles\epic";
-
-**** Path where the sas programs reside in ********;
-%let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Clinical;
-
-****** Names of the main tables to be used ********;
-%let ga_table = b1_ga_table;
-%let pndb_table = pndb_famli_records;
-
-****** Names of output tables to be generated *****;
-%let mat_info_pndb_table = b1_maternal_info_pndb;
-%let mat_info_epic_table = b1_maternal_info_epic;
-%let mat_final_output_table = b1_maternal_info;
-
-******* Define global values *******;
-%let max_ga_cycle = 308;
-%let ga_cycle = 280;
-
 ****** Call PNDB logic **************;
-%include "&Path/B1_get_pndb_mat_info.sas";
+%include "&ClinicalPath/B1_get_pndb_mat_info.sas";
 
 ***** Call Epic logic ***************;
-%include "&Path/B1_get_epic_mat_info.sas";
+%include "&ClinicalPath/B1_get_epic_mat_info.sas";
 
 ***** Merge the tables into one ********;
 proc sql;

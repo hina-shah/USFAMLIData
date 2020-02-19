@@ -15,7 +15,8 @@ create table lo_studies as
 	(	
 		select filename 
 		from famdat.b1_maternal_info_pndb
-	);
+	)
+;
 
 create table epic_maternal_info as
 	select distinct a.filename, a.PatientID, a.studydate, 
@@ -25,9 +26,10 @@ create table epic_maternal_info as
 		lo_studies as a 
 		left join 
 		epic.ob_dating as b 
-		on
+	on
 		(a.PatientID = b.pat_mrn_id) and 
-		(a.episode_edd = b.episode_working_edd);
+		(a.episode_edd = b.episode_working_edd)
+;
 quit;
 
 data epic_maternal_info;
@@ -47,44 +49,54 @@ end;
 run;
 
 /******************* HEIGHTS AND WEIGHT ******************/
-%include "&Path/B1_Epic_height_and_weight.sas";
+%include "&ClinicalPath/B1_Epic_height_and_weight.sas";
 
 /******************* TOBACCO USE **************************/
-%include "&Path/B1_Epic_tobacco_use.sas";
+%include "&ClinicalPath/B1_Epic_tobacco_use.sas";
 
 /******************* BIRTH WEIGHT AND GA AT BIRTH ******************/
-%include "&Path/B1_Epic_birth_weight_ga.sas";
+%include "&ClinicalPath/B1_Epic_birth_weight_ga.sas";
 
 /*************************** Preprocessing for HIV, Diabetes and fetal grwoth restriction *********************/
-%include "&Path/B1_Epic_preprocess.sas";
+%include "&ClinicalPath/B1_Epic_preprocess.sas";
 
 /******************* FETAL GROWTH RESTRICTION ******************/
-%include "&Path/B1_Epic_fetal_growth_restriction.sas";
+%include "&ClinicalPath/B1_Epic_fetal_growth_restriction.sas";
 
 /******************* HIV ******************/
-%include "&Path/B1_Epic_HIV.sas";
+%include "&ClinicalPath/B1_Epic_HIV.sas";
 
 /******************* Diabetes and Gestational diabetes ******************/
-%include "&Path/B1_Epic_diabetes.sas";
+%include "&ClinicalPath/B1_Epic_diabetes.sas";
 
 /******************* Hypertension (chronic and pregnancy induced) ******************/
-%include "&Path/B1_Epic_hypertension.sas";
+%include "&ClinicalPath/B1_Epic_hypertension.sas";
 
 
 /****************** Create final table ******************/
 proc sql;
 create table famdat.&mat_info_epic_table. as
-
-select * from epic_maternal_info where not missing(episode_working_edd) or not missing(mom_birth_date) or
-			mom_weight_oz > 0 or mom_height_in > 0 or not missing(tobacco_use) or not missing(fetal_growth_restriction) or
-			not missing(birth_wt_gms) or hiv eq 1 or gest_diabetes eq 1 or diabetes eq 1 or chronic_htn eq 1 or preg_induced_htn eq 1;
+	select * 
+	from epic_maternal_info 
+	where 
+		not missing(episode_working_edd) or 
+		not missing(mom_birth_date) or
+		mom_weight_oz > 0 or 
+		mom_height_in > 0 or 
+		not missing(tobacco_use) or 
+		not missing(fetal_growth_restriction) or
+		not missing(birth_wt_gms) or 
+		hiv eq 1 or 
+		gest_diabetes eq 1 or 
+		diabetes eq 1 or 
+		chronic_htn eq 1 or 
+		preg_induced_htn eq 1
+;
 
 /******************** FINAL STATS *************************/
 proc sql;
 create table counts as
-select filename, PatientID, ga, count(*) as cnt
-from epic_maternal_info
-group by filename, PatientID, ga;
-
-%include "&Path/B1_Epic_stats.sas";
-
+	select filename, PatientID, ga, count(*) as cnt
+	from epic_maternal_info
+	group by filename, PatientID, ga
+;

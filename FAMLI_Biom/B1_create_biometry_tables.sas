@@ -1,24 +1,23 @@
 * Program to create the biometry table from B1 dataset structured reports table;
 
-*libname famdat '/folders/myfolders/';
-
-* Read the subset table;
-%let famli_table = famdat.famli_b1_subset;
-
 %macro createTable(biometry=, biomvname=, shortname=);
 	* read the biometry tags;
 	proc sql;
 	create table temp_&biomvname (drop=Derivation Equation) as
-	select filename, PatientID, studydttm, tagname, tagcontent, Derivation, Equation
-	from &famli_table
-	where missing(Derivation) and tagname = "&biometry";
+		select filename, PatientID, studydttm, tagname, tagcontent, Derivation, Equation
+		from &famli_table
+		where 
+			missing(Derivation) and 
+			tagname = "&biometry"
+	;
 
 	* Remove duplicate tag contents;
 	create table WORK.temp_&biomvname._unique as
-	select distinct(tagcontent), filename, PatientID, studydttm
-	from temp_&biomvname
-	group by filename
-	order by filename;
+		select distinct(tagcontent), filename, PatientID, studydttm
+		from temp_&biomvname
+		group by filename
+		order by filename
+	;
 
 	* delete not needed tables;
 	proc delete data=temp_&biomvname;
