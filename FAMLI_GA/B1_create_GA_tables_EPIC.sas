@@ -1,9 +1,3 @@
-*libname famdat 'F:\Users\hinashah\SASFiles';
-*libname epic 'F:\Users\hinashah\SASFiles\epic';
-
-*libname famdat '/folders/myfolders';
-*libname epic '/folders/myfolders/epic';
-
 
 /********** EPIC **************/
 
@@ -65,18 +59,24 @@ proc sql;
 		famdat.b1_epic_lmps as a
 		inner join
 		(
-			select pat_mrn_id, episode_id, max(line) as max_line
+			select pat_mrn_id, episode_id, min(line) as min_line
 			from famdat.b1_epic_lmps
 			group by pat_mrn_id, episode_id
 		) as b
-		on a.pat_mrn_id = b.pat_mrn_id and a.episode_id = b.episode_id and a.line = max_line;
+		on a.pat_mrn_id = b.pat_mrn_id and a.episode_id = b.episode_id and a.line = min_line;
 
-	select count(*) label = 'Count of episodes with an LMP at maxline'
+	select count(*) label = 'Count of episodes with an LMP at minline'
 	from
 	(
 		select distinct pat_mrn_id, episode_id
 		from famdat.b1_epic_lmps_last_entry
 	);
+
+* ********* Epic delivery dates ;
+proc sql;
+create table famdat.b1_epic_deliveries as
+       select distinct pat_mrn_id, episode_id, datepart(delivery_dttm_utc) as delivery_date format mmddyy10.
+       from epic.delivery;
 
 *********** embryo transfer edd table from epic;
 proc sql;
@@ -277,6 +277,7 @@ input tablename $;
 datalines;
 b1_epic_working_edd_methods
 b1_epic_lmps_last_entry
+b1_epic_deliveries
 b1_epic_emb_trans_last_entry
 b1_epic_ultrasounds
 ;
@@ -289,6 +290,26 @@ if _n_=1 then
 else
 	call execute( catt('%mergedatasets(set1=', '&epic_ga_table.', ', set2=', tablename, ', outset=', '&epic_ga_table.', ');'));
 run;
+
+* remove entries that only within delivery date when available;
+proc sql;
+create table deleting_epic_rows as
+       select * 
+       from famdat.&epic_ga_table.
+       where 
+       		not missing(delivery_date) and
+                not missing(episode_working_edd) and
+                ( delivery_date < episode_working_edd - 280 or delivery_date > episode_working_edd + 30)
+;
+
+proc sql;
+delete * 
+	from famdat.&epic_ga_table.
+	where 
+		not missing(delivery_date) and
+                not missing(episode_working_edd) and
+                ( delivery_date < episode_working_edd - 280 or delivery_date > episode_working_edd + 30)
+;
 
 proc sql;
 alter table famdat.&epic_ga_table. add edd_source char;

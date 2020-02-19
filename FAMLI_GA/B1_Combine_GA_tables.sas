@@ -1,8 +1,3 @@
-*libname famdat'/folders/myfolders/';
-*libname epic '/folders/myfolders/epic';
-
-*libname famdat 'F:\Users\hinashah\SASFiles';
-*libname epic 'F:\Users\hinashah\SASFiles\epic';
 
 proc sql;
 create table all_US_pndb as  
@@ -14,7 +9,7 @@ create table all_US_pndb as
 		on
 		a.PatientID = b.PatientID and
 		a.studydate <= b.BEST_EDC and
-		a.studydate >= (b.BEST_EDC - 280);
+		a.studydate >= (b.BEST_EDC - &ga_cycle.);
 
 proc sql;
 create table all_US_pndb_epic as
@@ -28,7 +23,7 @@ create table all_US_pndb_epic as
 		on
 		a.PatientID = b.pat_mrn_id and
 		a.studydate <= b.episode_working_edd and
-		a.studydate >= (b.episode_working_edd - 280) and
+		a.studydate >= (b.episode_working_edd - &ga_cycle.) and
 		missing(a.episode_edd) and
 		not missing(b.episode_working_edd)
 		;
@@ -86,7 +81,7 @@ create table alerts as
 	from
 		famdat.&ga_final_table as a
 		left join
-		famdat.famli_b1_subset as b
+		&famli_table. as b
 	on
 	a.filename = b.filename and a.PatientID = b.PatientID;
 
@@ -106,9 +101,9 @@ create table to_be_deleted as
 
 delete * from famdat.&ga_final_table. 
 	where filename in (select * from to_be_deleted);
-delete * from famdat.b1_patmrn_studytm 
+delete * from &famli_studies. 
 	where filename in (select * from to_be_deleted);
-delete * from &famli_table
+delete * from &famli_table.
 	where filename in (select * from to_be_deleted);
 
 * Create missing ga studies, and pregnancy list;
@@ -134,7 +129,7 @@ quit;
 data famdat.&ga_final_table.;
 set famdat.&ga_final_table.;
 if not missing(episode_edd) then do;
-	ga_edd = 280 - (episode_edd - studydate);
+	ga_edd = &ga_cycle. - (episode_edd - studydate);
 end;
 run;
 

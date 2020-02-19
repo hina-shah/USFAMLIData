@@ -13,12 +13,6 @@ ones of importance are ob_dating, labs, medications, vitals, delivery, social_hx
 Outputs: A unified database file for all biometry measurements: B1_all_gas
 ******************************************************************************/
 
-*libname famdat "\folders\myfolders";
-*libname epic "\folders\myfolders\epic";
-
-*libname famdat  "F:\Users\hinashah\SASFiles";
-*libname epic "F:\Users\hinashah\SASFiles\epic";
-
 **** create GA tables from SR ********;
 %include "&GAPath/B1_create_GA_tables_SR.sas";
 

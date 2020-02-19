@@ -37,6 +37,7 @@ retain filename ga PatientID studydate DOC episode_working_edd ga_from_edd deliv
 	diabetes gest_diabetes;
 set famdat.&mat_final_output_table.;
 	ga_from_edd  = &ga_cycle. - (episode_working_edd - studydate);
+	if mom_height_in < 40 or mom_height_in > 90 then mom_height_in = .;
 run;
 
 *************** Adding labels to the data *******************;
