@@ -6,7 +6,7 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 */
 
 *Create a table with the studies that were not filled up by pndb;
-proc sql;
+/*proc sql;
 create table lo_studies as
 	select *
 	from famdat.&ga_table. 
@@ -31,6 +31,21 @@ create table epic_maternal_info as
 		(a.episode_edd = b.episode_working_edd)
 ;
 quit;
+*/
+proc sql;
+create table epic_maternal_info as 
+	select distinct a.filename, a.PatientID, a.studydate,
+			a.ga_edd as ga, b.episode_working_edd, 
+			b.birth_date as mom_birth_date format mmddyy10.
+	from
+		famdat.&ga_table. as a
+		inner join 
+		epic.ob_dating as b
+	on
+		(a.PatientID = b.pat_mrn_id) and
+		(a.episode_edd = b.episode_working_edd)
+;
+quit;	
 
 data epic_maternal_info;
 set epic_maternal_info;
@@ -71,7 +86,6 @@ run;
 
 /******************* Hypertension (chronic and pregnancy induced) ******************/
 %include "&ClinicalPath/B1_Epic_hypertension.sas";
-
 
 /****************** Create final table ******************/
 proc sql;

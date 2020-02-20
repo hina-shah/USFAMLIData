@@ -121,7 +121,7 @@ proc sql;
 	select distinct pat_mrn_id, episode_id,
 		coalesce(user_entered_date, sys_entered_date) as us_date format mmddyy10. label='Date of the ultrasound',
 		coalesce(user_estimated_edd, sys_estimated_edd) as us_edd format mmddyy10. label='EDD based on the ultrasound',
-		user_entered_ga_days as us_ga_days label='GA on date of ultrasound',
+		asuser_entered_ga_days as us_ga_days label='GA on date of ultrasound',
 		line
 	from ob_dating_epic
 	where ob_dating_event='ULTRASOUND' and not(missing(user_estimated_edd) and missing(sys_estimated_edd));

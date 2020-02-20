@@ -81,7 +81,7 @@ create table occurence_counts as
 		'Diagnosed Nicotine User' as smoking_tob_use_c
 	from
 	( /* List studies with acceptable ICD codes during the pregnancy duration of the study */
-		select distinct a.*, b.contact_date as contact_date_diag format mmddyy10., b.ref_bill_code
+		select distinct a.*, b.effective_date_dt as contact_date_diag format mmddyy10., b.ref_bill_code
 		from
 			epic_maternal_info as a 
 			inner join 
@@ -89,8 +89,8 @@ create table occurence_counts as
 		on
 			a.PatientID = b.pat_mrn_id and 
 			prxmatch('/^(F17|305\.1|O99\.3|Z71\.6|Z72\.0).*/', ref_bill_code)=1 and
-			b.contact_date <= a.episode_working_edd and
-			b.contact_date >= a.DOC
+			b.effective_date_dt <= a.episode_working_edd and
+			b.effective_date_dt >= a.DOC
 		where a.PatientID in
 			(
 				select PatientID 

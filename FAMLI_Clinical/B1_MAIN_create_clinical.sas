@@ -22,9 +22,35 @@ Outputs: A unified database file for all biometry measurements: B1_MATERNAL_INFO
 %include "&ClinicalPath/B1_get_epic_mat_info.sas";
 
 ***** Merge the tables into one ********;
+* Find studies not populated by epic;
 proc sql;
-	create table famdat.&mat_final_output_table. as
-	select * from famdat.&mat_info_pndb_table.
+create table lo_studies as
+	select filename
+	from famdat.&ga_table. 
+	where filename 
+	not in
+	(	
+		select filename 
+		from famdat.&mat_info_epic_table.
+	)
+;
+
+*Try to fill them up with pndb;
+proc sql;
+create table pndb_leftovers as
+	select * 
+	from famdat.&mat_info_pndb_table.
+	where filename in 
+		(
+			select filename 
+			from lo_studies
+		)
+;
+
+*Combine the tables;
+proc sql;
+create table famdat.&mat_final_output_table. as
+	select * from pndb_leftovers
 		OUTER UNION CORR
 		select * from famdat.&mat_info_epic_table.;
 

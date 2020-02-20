@@ -8,8 +8,8 @@ create table epic_maternal_info as
 		epic_diagnosis_pre as b
 	on
 		(a.PatientID = b.pat_mrn_id) and
-		(b.contact_date >= (a.episode_working_edd - &ga_cycle.)) and
-		(b.contact_date <= a.studydate) and
+		(b.effective_date_dt >= (a.episode_working_edd - &ga_cycle.)) and
+		(b.effective_date_dt <= a.studydate) and
 		b.fetal_growth_restriction = 1
 	order by a.PatientID;
 quit;

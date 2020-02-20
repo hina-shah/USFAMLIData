@@ -98,8 +98,8 @@ create table diagnoses as
 			epic_diagnosis_pre as b
 		on
 			(a.PatientID = b.pat_mrn_id) and
-			(b.contact_date >= (a.DOC)) and
-			(b.contact_date <= a.studydate) and
+			(b.effective_date_dt >= (a.DOC)) and
+			(b.effective_date_dt <= a.studydate) and
 			b.hiv = 1
 	)
 	group by PatientID, studydate, filename;

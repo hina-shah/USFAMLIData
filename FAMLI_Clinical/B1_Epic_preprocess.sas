@@ -9,7 +9,7 @@
 *These will be converted to pregnancy diagnoses at a later stage;
 proc sql;
 create table epic_diagnosis_pre as
-	select pat_mrn_id, study_id, contact_date, ref_bill_code, icd_code_set, dx_name,
+	select pat_mrn_id, study_id, effective_date_dt, ref_bill_code, icd_code_set, dx_name,
 		find(dx_name, 'poor fetal growth', 'i') > 0 as fetal_growth_restriction,
 		(find(dx_name, 'human immunodeficiency virus', 'i') >0 and prxmatch('/^(B20|042|O98\.7|V08|Z21).*/', ref_bill_code)) as hiv,
 		prxmatch('/^(E08|E09|E10|E11|E13|O24\.0|O24\.1|O24\.3|O24\.8|250|648\.0).*/', ref_bill_code) as diabetes,

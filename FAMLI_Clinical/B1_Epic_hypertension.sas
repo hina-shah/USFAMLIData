@@ -77,7 +77,7 @@ create table with_prev as
 *Get ICD code counts;
 proc sql;
 create table with_prev as
-	select a.*, b.chr_htn, b.contact_date
+	select a.*, b.chr_htn, b.effective_date_dt
 	from
 		epic_maternal_info as a 
 		inner join
@@ -85,7 +85,7 @@ create table with_prev as
 	on
 		(a.PatientID = b.pat_mrn_id) and
 		/*(b.contact_date >= (a.DOC)) and */
-		(b.contact_date <= a.studydate) and
+		(b.effective_date_dt <= a.studydate) and
 		b.chr_htn = 1 and
 		a.ga < 140
 ;
@@ -229,8 +229,8 @@ create table diagnoses as
 			epic_diagnosis_pre as b
 			on
 				(a.PatientID = b.pat_mrn_id) and
-				(b.contact_date >= (a.DOC)+140) and
-				(b.contact_date <= a.studydate) and
+				(b.effective_date_dt >= (a.DOC)+140) and
+				(b.effective_date_dt <= a.studydate) and
 				b.preg_htn = 1 and
 				a.ga > 140
 	)

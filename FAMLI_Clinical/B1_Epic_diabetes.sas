@@ -58,19 +58,19 @@ create table with_prev as
 proc sql;
 *Get all diagnoses including previous pregnancies;
 create table with_prev as
-	select a.*, b.contact_date, b.diabetes 
+	select a.*, b.effective_date_dt, b.diabetes 
 	from
 		epic_maternal_info as a 
 		inner join
 		epic_diagnosis_pre as b
 	on
 		(a.PatientID = b.pat_mrn_id) and
-		(b.contact_date <= a.studydate) and
+		(b.effective_date_dt <= a.studydate) and
 		b.diabetes = 1 and
 		a.ga < 140
 ;
 
-%deleteRecordsOfPrevPregnancies(inputtable=with_prev,outputtable=diagnoses_excl,datevariable=contact_date);
+%deleteRecordsOfPrevPregnancies(inputtable=with_prev,outputtable=diagnoses_excl,datevariable=effective_date_dt);
 
 proc sql;
 create table diagnoses as
@@ -175,8 +175,8 @@ create table diagnoses as
 			epic_diagnosis_pre as b
 		on
 			(a.PatientID = b.pat_mrn_id) and
-			(b.contact_date >= (a.DOC + 140)) and
-			(b.contact_date <= a.studydate) and
+			(b.effective_date_dt >= (a.DOC + 140)) and
+			(b.effective_date_dt <= a.studydate) and
 			b.gest_diabetes = 1 and
 			a.ga >= 140
 	)
