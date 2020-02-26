@@ -32,29 +32,35 @@ Outputs: A unified database file for all biometry measurements: B1_BIOM
 
 *************** Adding labels to the data *******************;
 proc sql;
-	alter table famdat.&biom_final_output_table.
-	modify filename label="Name of SR file",
-			PatientID label='ID of Patientes', 
-			studydate label='Date of the study/us',
-			fl_1 label = 'Femur lengths',
-			ac_1 label = 'Abdominal Circumferences',
-			bp_1 label = 'Biparietal Diameter',
-			afiq1_1 label = 'Amniotic Fluid Index (Quarter 1)',
-			afiq2_1 label = 'Amniotic Fluid Index (Quarter 2)',
-			afiq3_1 label = 'Amniotic Fluid Index (Quarter 3)',
-			afiq4_1 label = 'Amniotic Fluid Index (Quarter 4)',
-			crl_1 label = 'Crown Rump Length',
-			hc_1 label = 'Head Circumference',
-			mvp_1 label = 'Max Vertical Pocket',
-			tcd_1 label = 'Trans Cerebellar Diameter'
-			;
+    alter table famdat.&biom_final_output_table.
+    modify filename label="Name of SR file",
+            PatientID label='ID of Patientes', 
+            studydate label='Date of the study/us',
+            fl_1 label = 'Femur lengths',
+            ac_1 label = 'Abdominal Circumferences',
+            bp_1 label = 'Biparietal Diameter',
+            afiq1_1 label = 'Amniotic Fluid Index (Quarter 1)',
+            afiq2_1 label = 'Amniotic Fluid Index (Quarter 2)',
+            afiq3_1 label = 'Amniotic Fluid Index (Quarter 3)',
+            afiq4_1 label = 'Amniotic Fluid Index (Quarter 4)',
+            crl_1 label = 'Crown Rump Length',
+            hc_1 label = 'Head Circumference',
+            mvp_1 label = 'Max Vertical Pocket',
+            tcd_1 label = 'Trans Cerebellar Diameter'
+            ;
 quit;
 
 data famdat.&biom_final_output_table.;
 retain filename PatientID studydate
-	fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
+    fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
 set famdat.&biom_final_output_table.;
 run;
 
+ods pdf file= "&ReportsOutputPath.\B1_Biom_Details.pdf";
+
+title 'Contents for the biometry table';
+
 proc contents data=famdat.&biom_final_output_table. varnum;
 run;
+
+ods pdf close;
