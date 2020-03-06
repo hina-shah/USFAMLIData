@@ -3,26 +3,26 @@
 * Ideally would use a full join - but it was giving some errors during testing;
 
 %macro mergedatasets(set1=, set2=, outset=);
-	%let sortvars = filename PatientID;
-	proc sort data=famdat.&set1 out=work._tmpsort1_;
-		by &sortvars;
-	run;
-	proc sort data=famdat.&set2 out=work._tmpsort2_;
-		by &sortvars;
-	run;
-	data famdat.&outset;
-		merge _tmpsort1_ _tmpsort2_;
-		by &sortvars;
-	run;
-	proc delete data=work._tmpsort1_ work._tmpsort2_;
-	run;
+    %let sortvars = filename PatientID;
+    proc sort data=famdat.&set1 out=work._tmpsort1_;
+        by &sortvars;
+    run;
+    proc sort data=famdat.&set2 out=work._tmpsort2_;
+        by &sortvars;
+    run;
+    data famdat.&outset;
+        merge _tmpsort1_ _tmpsort2_;
+        by &sortvars;
+    run;
+    proc delete data=work._tmpsort1_ work._tmpsort2_;
+    run;
 %mend;
 
 * macro to just set one dataset;
 %macro setdataset(setin=, setout=);
-	data famdat.&setout;
-	set famdat.&setin;
-	run;
+    data famdat.&setout;
+    set famdat.&setin;
+    run;
 %mend;
 
 %let outputset = 'ds_biometry_';
@@ -39,9 +39,9 @@ completename = cats(&outputset, newvar);
 put completename=;
 call symput('biom_created_table', completename );
 if _n_=1 then
-	call execute( catt('%setdataset(setin=', varname, ', setout=', completename, ');'));
+    call execute( catt('%setdataset(setin=', varname, ', setout=', completename, ');'));
 else
-	call execute( catt('%mergedatasets(set1=', completename, ', set2=', varname, ', outset=', completename, ');'));
+    call execute( catt('%mergedatasets(set1=', completename, ', set2=', varname, ', outset=', completename, ');'));
 run;
 
 * merge with the gestational age table;
@@ -53,13 +53,13 @@ run;
 
 proc sql;
 delete *
-	from famdat.&biom_final_output_table.
-	where
-		missing(fl_1) and missing(crl_1) and 
-		missing(bp_1) and missing(ac_1) and 
-		missing(tcd_1) and missing(afiq1_1) and 
-		missing(afiq2_1) and missing(afiq3_1) and 
-		missing(afiq4_1) and missing(hc_1) and 
-		missing(mvp_1)
+    from famdat.&biom_final_output_table.
+    where
+        missing(fl_1) and missing(crl_1) and 
+        missing(bp_1) and missing(ac_1) and 
+        missing(tcd_1) and missing(afiq1_1) and 
+        missing(afiq2_1) and missing(afiq3_1) and 
+        missing(afiq4_1) and missing(hc_1) and 
+        missing(mvp_1)
 ;
-	
+    

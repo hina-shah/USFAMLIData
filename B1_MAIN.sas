@@ -28,7 +28,7 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 
 *************** INPTUT Datasets ********************;
 %let maintablename = famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
-%let pndb_table = pndb_famli_records;
+%let pndb_table = pndb_famli_records_with_matches;
 %let r4_table = unc_famli_r4data20190820;
 
 ************** OVERALL output tables ***************;
