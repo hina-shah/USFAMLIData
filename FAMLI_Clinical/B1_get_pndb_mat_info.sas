@@ -113,9 +113,17 @@ create table studies_and_deliveries as
 			end as tobacco_use,
 			F_PMH1515 as tobacco_pak_per_day,
 			A_APP0701 as chronic_htn,
-			PregIndHTN as preg_induced_htn,
+			case 
+				when PregIndHTN = 1 then .
+				when PregIndHTN = 0 then 0
+				else  .
+			end as preg_induced_htn,
 			PrevDiab as diabetes,
-			GestDiab as gest_diabetes
+			case 
+				when GestDiab= 1 then .
+				when GestDiab= 0 then 0
+				else  .
+			end as gest_diabetes
 			from pndb_preprocess 
 			where not missing(Mom_EpicMRN)
 		) as b
