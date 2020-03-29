@@ -42,7 +42,8 @@ proc sql;
     sys_entered_date, user_entered_date,
     episode_working_edd
  from ob_dating_epic
- where ob_dating_event='LAST MENSTRUAL PERIOD';
+ where ob_dating_event='LAST MENSTRUAL PERIOD' and 
+ 		(not missing(sys_entered_date) or not missing(user_entered_date));
 
  select count(*) label = 'Count of episodes with an LMP'
  from
@@ -63,7 +64,10 @@ proc sql;
         from famdat.b1_epic_lmps
         group by pat_mrn_id, episode_id
     ) as b
-    on a.pat_mrn_id = b.pat_mrn_id and a.episode_id = b.episode_id and a.line = min_line;
+    on a.pat_mrn_id = b.pat_mrn_id and 
+    	a.episode_id = b.episode_id and 
+    	a.line = min_line and 
+    	not missing(a.user_entered_date);
 
  select count(*) label = 'Count of episodes with an LMP at minline'
  from
@@ -101,7 +105,7 @@ proc sql;
     from famdat.b1_epic_emb_trans
  );
 
- *Select lmps with just the last lmp;
+ *Select embryo transfer last date;
  proc sql;
  create table famdat.b1_epic_emb_trans_last_entry as
  select a.pat_mrn_id, a.episode_id,
@@ -201,18 +205,37 @@ proc sql;
     work.tempusga as b
  on a.pat_mrn_id = b.pat_mrn_id and a.episode_id = b.episode_id;
 
+************ Create counts for the number of dating events *********;
+proc sql;
+create table dating_event as
+select distinct pat_mrn_id, episode_id, ob_dating_event
+from ob_dating_epic
+;
+
+create table dating_event_counts as 
+select *, count(*) as count_events
+from dating_event
+group by pat_mrn_id, episode_id
+;
+
+create table lmps as
+select pat_mrn_id, episode_id 
+from dating_event_counts
+where count_events=1 and ob_dating_event="LAST MENSTRUAL PERIOD";
 
 ************ Get final working edd, and it's method of determination;
 proc sql;
  create table famdat.b1_epic_final_working_edd  as
  select distinct pat_mrn_id, episode_id, episode_working_edd
- from ob_dating_epic;
+ from ob_dating_epic
+ where not missing(episode_working_edd);
+ 
 
  create table b1_working_edd_methods as
  select distinct pat_mrn_id, episode_id, ob_dating_event as method_for_working_edd,
         episode_working_edd, line, entry_comment
  from ob_dating_epic
- where working_edd='Y';
+ where working_edd='Y' and not missing(episode_working_edd);
 
  select count(*) label = 'Count of Episodes with a final edd method'
  from
@@ -245,7 +268,7 @@ proc sql;
     from b1_epic_final_edd_last_entry
  );
 
- create table famdat.b1_epic_working_edd_methods as
+ create table famdat.b1_epic_working_edd_methods_lmps as
  select coalesce(a.pat_mrn_id, b.pat_mrn_id) as pat_mrn_id,
         coalesce(a.episode_id, b.episode_id) as episode_id,
         a.episode_working_edd,
@@ -256,6 +279,13 @@ proc sql;
     left join
     b1_epic_final_edd_last_entry as b
  on a.pat_mrn_id = b.pat_mrn_id and a.episode_id = b.episode_id;
+
+* Remove the episodes that have only LMP as the dating event, to remove errors;
+proc sql;
+create table famdat.b1_epic_working_edd_methods as
+select * from famdat.b1_epic_working_edd_methods_lmps
+where episode_id not in (select episode_id from lmps)
+;
 
 *Combine everything together : this needs to be an inner join, but once the us is unified to have a row per study;
 %macro mergedatasets(set1=, set2=, outset=);
