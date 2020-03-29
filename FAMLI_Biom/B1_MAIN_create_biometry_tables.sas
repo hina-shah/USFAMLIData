@@ -56,6 +56,10 @@ retain filename PatientID studydate
 set famdat.&biom_final_output_table.;
 run;
 
+***************** Create a subset table with only first/last biometry values and their means *************;
+%include "&BiomPath/B1_create_biom_subset.sas";
+
+******************* Output the data ***************************;
 ods pdf file= "&ReportsOutputPath.\B1_Biom_Details.pdf";
 
 title 'Contents for the biometry table';

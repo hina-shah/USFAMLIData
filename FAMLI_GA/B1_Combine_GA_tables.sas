@@ -61,17 +61,50 @@ create table all_US_pndb_epic_sr_r4 as
         a.studydate = b.ExamDate and
         not missing(b.EDD)
     order by PatientID, studydate;
+   
+
+* Extrapolate GAs when not available;
+proc sql;
+create table extrap_ga_attempt as 
+    select a.*, b.episode_edd as episode_edd_extrap format mmddyy10.
+    from
+        all_US_pndb_epic_sr_r4 as a 
+        left join
+        ( 
+            select distinct PatientID, episode_edd, edd_source
+            from all_US_pndb_epic_sr_r4
+            where not missing(episode_edd)
+         ) as b
+     on 
+     a.PatientID = b.PatientID and
+     a.studydate > b.episode_edd - &ga_cycle. and
+     a.studydate <= b.episode_edd 
+;
+
+data extrap_ga_attempt_together (drop=episode_edd_extrap);
+set extrap_ga_attempt;
+if missing(episode_edd) and not missing(episode_edd_extrap) then
+    do;
+        episode_edd = episode_edd_extrap;
+        edd_source = 'extrap';
+    end;
+run;
+
+proc sql;
+create table distinct_gas_extrap as
+    select distinct * from extrap_ga_attempt_together
+;
 
 * If there are multiple edd's assigned then assign the later one;
 proc sql;
 create table famdat.&ga_final_table. as
     select a.filename, a.PatientID, a.studydate, a.episode_edd, a.edd_source
     from
-        all_US_pndb_epic_sr_r4 as a
+        distinct_gas_extrap as a
         inner join
         (
             select filename, PatientID, studydate, max(episode_edd) as max_episode_edd
-            from all_US_pndb_epic_sr_r4
+            from distinct_gas_extrap
             group by filename, PatientID, studydate
         ) as b
         on a.filename = b.filename and a.PatientID = b.PatientID and a.episode_edd = max_episode_edd;
