@@ -1,37 +1,4 @@
-/*libname famdat "F:\Users\hinashah\SASFiles";
-libname epic "F:\Users\hinashah\SASFiles\epic";
 
-**** Path where the sas programs reside in ********;
-%let Path= F:\Users\hinashah\SASFiles\USFAMLIData\FAMLI_Clinical;
-*/
-
-*Create a table with the studies that were not filled up by pndb;
-/*proc sql;
-create table lo_studies as
-    select *
-    from famdat.&ga_table. 
-    where filename 
-    not in
-    (   
-        select filename 
-        from famdat.b1_maternal_info_pndb
-    )
-;
-
-create table epic_maternal_info as
-    select distinct a.filename, a.PatientID, a.studydate, 
-            a.ga_edd as ga, b.episode_working_edd,
-            b.birth_date as mom_birth_date format mmddyy10.
-    from
-        lo_studies as a 
-        left join 
-        epic.ob_dating as b 
-    on
-        (a.PatientID = b.pat_mrn_id) and 
-        (a.episode_edd = b.episode_working_edd)
-;
-quit;
-*/
 proc sql;
 create table epic_maternal_info as 
     select distinct a.filename, a.PatientID, a.studydate,

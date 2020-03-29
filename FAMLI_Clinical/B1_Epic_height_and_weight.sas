@@ -26,7 +26,9 @@ create table before as
 		a.PatientID = b.pat_mrn_id and
 		b.recorded_time <= DHMS(a.DOC,11,59,59)
 	where 
-		not missing(b.weight_oz) and 
+		not missing(b.weight_oz) and
+		b.weight_oz >= &min_weight.*16 and
+		b.weight_oz <= &max_weight.*16 and
 		not missing(b.recorded_time)
 	order by PatientID, DOC
 ;
@@ -61,6 +63,8 @@ create table after as
 		b.recorded_time > DHMS(a.DOC,11,59,59)
 	where 
 		not missing(b.weight_oz) and 
+		b.weight_oz >= &min_weight.*16 and
+		b.weight_oz <= &max_weight.*16 and
 		not missing(b.recorded_time)
 	order by PatientID, DOC
 ;
@@ -150,6 +154,7 @@ create table before as
 		b.recorded_time <= DHMS(a.DOC,11,59,59)
 	where 
 		not missing(b.height_in) and 
+		b.height_in >= &min_height. and b.height_in <= &max_height. and
 		not missing(b.recorded_time)
 	order by PatientID, DOC;
 
@@ -179,6 +184,7 @@ create table after as
 		b.recorded_time > DHMS(a.DOC,11,59,59)
 	where 
 		not missing(b.height_in) and 
+		b.height_in >= &min_height. and b.height_in <= &max_height. and
 		not missing(b.recorded_time)
 	order by PatientID, DOC;
 
