@@ -23,13 +23,15 @@ create table &famli_table. as
         alert = 'non-singleton'
     ) and 
     lastsrofstudy=1 and 
-    anybiometry=1;
+    anybiometry=1
+;
 
 /* This will store instances of a structured report*/
 proc sql noprint;
 create table &famli_studies. as
     select distinct PatientID, studydttm, studydate, filename
     from &famli_table.;
+
 
 *Trying to remove duplicates using ids;
 create table dups as

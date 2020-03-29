@@ -22,6 +22,7 @@ Outputs: b1_ga_table - table with gestational ages,
 libname famdat  "F:\Users\hinashah\SASFiles";
 libname epic "F:\Users\hinashah\SASFiles\epic";
 
+
 **** Path where the sas programs reside in ********;
 %let MainPath= F:\Users\hinashah\SASFiles\USFAMLIData;
 %let ReportsOutputPath = F:\Users\hinashah\SASFiles\Reports;
@@ -61,12 +62,16 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 ******* Define global values *******;
 %let max_ga_cycle = 308;
 %let ga_cycle = 280;
+%let min_height = 40;
+%let max_height = 90;
+%let min_weight = 90; /* in lbs */
+%let max_weight = 400; /* in lbs */
 
 * ********************** Biometry variables *********;
 **** Path where the biom sas programs reside in ********;
 %let BiomPath= &MainPath.\FAMLI_Biom;
 %let biom_final_output_table = b1_biom;
-
+%let biom_subset_measures = b1_biom_subset_measures;
 
 **** create subset ********;
 %include "&MainPath/B1_dataset_processing.sas";
