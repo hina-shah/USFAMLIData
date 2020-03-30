@@ -16,16 +16,13 @@ create table sldat.SL_Table1_All as
 select 'Number of Ultrasounds initially:', count(*) from sldat.SL_Table1_All;
 select 'Number of pregnancies initially:', count(*) from (select distinct PatientID, episode_edd from sldat.SL_Table1_All where not missing(episode_edd));
 select 'Number of patients initially:', count(*) from  (select distinct PatientID from sldat.SL_Table1_All );
-proc means data=sldat.SL_Table1_All NMISS N; run;
 
-proc sort data=sldat.SL_Table1_All out=sldat.SL_Table1_All;
-by tobacco_use;
-run;
-
-data sldat.SL_Table1_All;
+data sldat.SL_Table1_All (drop=mom_weight_oz);
 set sldat.SL_Table1_All;
-by tobacco_use;
-if not missing(tobacco_use) and first.tobacco_use then tobacco_use_num+1;
+
+current_smoker = prxmatch('/(CURRENT)|(Diagnosed)/',tobacco_use) > 0;
+former_smoker = prxmatch('/FORMER/', tobacco_use) >0;
+mom_weight_lb = mom_weight_oz/16.;
 
 fl_mean = fl_1;
 if not missing(fl_2) then fl_mean = mean(fl_1, fl_2);
@@ -58,12 +55,14 @@ hadlock_intergrowth_diff = abs(hadlock_ga_diff - intergrowth_ga_diff);
 
 run;
 
+proc means data=sldat.SL_Table1_All N NMISS  MEDIAN Q1 Q3 MEAN MIN MAX STD; run;
+
 * For variable to be fed into the superlearner chose them to be always present;
 proc sql;
 create table sldat.SL_Table1_NonMissing as
     select  filename, PatientID, studydate, lmp, ga_edd, episode_edd,
                     fl_1, bp_1, hc_1,ac_1,
-                    mom_age_edd, mom_weight_oz, mom_height_in, hiv, tobacco_use_num,
+                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker,
                     chronic_htn, preg_induced_htn, diabetes, gest_diabetes, hadlock_ga, intergrowth_ga,
                     hadlock_ga_diff, intergrowth_ga_diff, hadlock_intergrowth_diff
     from sldat.SL_Table1_All
@@ -73,14 +72,40 @@ create table sldat.SL_Table1_NonMissing as
         and not missing(bp_1) and bp_1>0 
         and not missing(hc_1) and hc_1>0
         and not missing(ac_1) and ac_1>0 
-        and not missing(mom_age_edd) and not missing (mom_weight_oz)
+        and not missing(mom_age_edd) and not missing (mom_weight_lb)
         and not missing(mom_height_in)
         and not missing(hiv) and not missing(tobacco_use)
         and not missing(chronic_htn) and not missing(preg_induced_htn) 
         and not missing(diabetes) and not missing(gest_diabetes)
 ;
-
 select 'Number of Ultrasounds with complete information:', count(*) from sldat.SL_Table1_NonMissing;
+
+proc sql;
+create table sldat.SL_Table1_NonMissing_Two as
+    select  filename, PatientID, studydate, lmp, ga_edd, episode_edd,
+                    fl_1, fl_2, bp_1, bp_2, hc_1, hc_2, ac_1, ac_2,
+                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker,
+                    chronic_htn, preg_induced_htn, diabetes, gest_diabetes, hadlock_ga, intergrowth_ga,
+                    hadlock_ga_diff, intergrowth_ga_diff, hadlock_intergrowth_diff
+    from sldat.SL_Table1_All
+    where
+        not missing(ga_edd) and not missing(episode_edd)
+        and not missing(fl_1) and fl_1>0 
+        and not missing(bp_1) and bp_1>0 
+        and not missing(hc_1) and hc_1>0
+        and not missing(ac_1) and ac_1>0 
+        and not missing(fl_2) and fl_2>0 
+        and not missing(bp_2) and bp_2>0 
+        and not missing(hc_2) and hc_2>0
+        and not missing(ac_2) and ac_2>0 
+        and not missing(mom_age_edd) and not missing (mom_weight_lb)
+        and not missing(mom_height_in)
+        and not missing(hiv) and not missing(tobacco_use)
+        and not missing(chronic_htn) and not missing(preg_induced_htn) 
+        and not missing(diabetes) and not missing(gest_diabetes)
+;
+select 'Number of Ultrasounds with complete information and two biometries:', count(*) from sldat.SL_Table1_NonMissing_Two;
+
 
 * Get the pregnancies from this table ;
 proc sql;
@@ -148,7 +173,19 @@ delete *
              ) 
 ;
 
-select 'Number of Ultrasound studies to be fed to SL:', count(*) from sldat.SL_FinalRandSelectTable1;
+proc sql;
+create table sldat.SL_FinalRandSelectTable1_subset as
+	select * 
+	from sldat.SL_FinalRandSelectTable1
+	where
+		hadlock_ga_diff <= 30 and intergrowth_ga_diff <=30
+;
+
+proc sql;
+select 'Number of Ultrasound studies randomly selected:', count(*) from sldat.SL_FinalRandSelectTable1;
+select 'Number of Ultrasound studies to be fed to SL:', count(*) from sldat.SL_FinalRandSelectTable1_subset;
+
+proc means data=sldat.SL_FinalRandSelectTable1 N NMISS MEDIAN Q1 Q3 MEAN MIN MAX STD; run;
 
 /*--Set output size--*/
 ods graphics / reset  imagemap
@@ -203,3 +240,32 @@ proc univariate data=sldat.SL_FinalRandSelectTable1 noprint;
 run;
 
 ods graphics / reset;
+
+
+%ds2csv(
+    data=sldat.SL_FinalRandSelectTable1_subset,
+    runmode=b,
+    labels=N,
+    csvfile=F:/Users/hinashah/SASFiles/SL_FinalRandSelectTable1_subset.csv   
+);
+
+proc surveyselect data=sldat.SL_FinalRandSelectTable1_subset
+      method=srs n=5000 out=sldat.SL_FinalRandSelectTable1_sub5K;
+   run;
+   
+proc surveyselect data=sldat.SL_FinalRandSelectTable1_subset
+      method=srs n=10000 out=sldat.SL_FinalRandSelectTable1_sub10K;
+   run;
+
+data sldat.SL_FinalRandSelectTable1_s5kb (keep=filename PatientID studydate lmp ga_edd episode_edd
+                    fl_1 bp_1 hc_1 ac_1 hadlock_ga intergrowth_ga
+                    hadlock_ga_diff intergrowth_ga_diff);
+set sldat.SL_FinalRandSelectTable1_sub5k;
+run;
+
+
+data sldat.SL_FinalRandSelectTable1_s10kb (keep=filename PatientID studydate lmp ga_edd episode_edd
+                    fl_1 bp_1 hc_1 ac_1 hadlock_ga intergrowth_ga
+                    hadlock_ga_diff intergrowth_ga_diff);
+set sldat.SL_FinalRandSelectTable1_sub10k;
+run;

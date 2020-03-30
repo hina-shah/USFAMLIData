@@ -1,85 +1,116 @@
 *Superlearner call two 19mar20.sas;
 options nocenter nodate pageno=1 fullstimer;
-ods listing gpath="F:/Users/hinashah/SASFiles/SLData" image_dpi=500;
+
+%let serverpath = F:/Users/hinashah;
+%let suffix = _sub10k;
+%let tablename = SL_FinalRandSelectTable1&suffix.;
+%let sl_table = c&suffix.;
+
+ods listing gpath="&serverpath./SASFiles/SLData" image_dpi=500;
 
 *Point and include the SL macro;
-%INCLUDE "F:\Users\hinashah\SASFiles\USFAMLIData\Superlearner\super_learner_macro.sas";
+%INCLUDE "&serverpath.\SASFiles\USFAMLIData\Superlearner\super_learner_macro.sas";
 
-libname sldat "F:\Users\hinashah\SASFiles\SLData";
+libname sldat "&serverpath.\SASFiles\SLData";
+
+ods pdf file="&serverpath.\SASFiles\SLData\Report&suffix..pdf";
 
 *Look at data;
-proc contents data = sldat.SL_FinalRandSelectTable1_subset;
+proc contents data = sldat.&tablename.;
     title1 "Superlearner call 19mar20";
     title2 "Table1 Data predictions";
-proc means data = sldat.SL_FinalRandSelectTable1_subset;
+proc means data = sldat.&tablename.;
 run;
 
 *Linear regression predictions;
-proc genmod data = sldat.SL_FinalRandSelectTable1_subset;
-    model ga_edd = fl_1 bp_1 ac_1 hc_1 mom_age_edd mom_weight_oz mom_height_in
-                    hiv tobacco_use_num chronic_htn preg_induced_htn diabetes gest_diabetes;
+proc genmod data = sldat.&tablename.;
+    model ga_edd = fl_1 bp_1 ac_1 hc_1 mom_age_edd mom_weight_lb mom_height_in
+                    hiv current_smoker former_smoker chronic_htn preg_induced_htn diabetes gest_diabetes;
     output out = b p = d1;
-proc means data = b;
-    var d1;
-    title2 "Predicted value of GA_EDD from linear regression";
 run;
 
 *Superlearner predctions;
 TITLE "Super learner fit";
 %SuperLearner(Y = ga_edd,
-              X = fl_1 bp_1 ac_1 hc_1 mom_age_edd mom_weight_oz mom_height_in
-                    hiv tobacco_use_num chronic_htn preg_induced_htn diabetes gest_diabetes,
+              X = fl_1 bp_1 ac_1 hc_1 mom_age_edd mom_weight_lb mom_height_in
+                    hiv current_smoker former_smoker chronic_htn preg_induced_htn diabetes gest_diabetes,
               indata = b,
-              outdata = c,
+              outdata = sldat.&sl_table.,
               library = glm gam lasso rf nn,
               folds = 10,
               method = NNLS,
               dist = GAUSSIAN );
 run;
 
-ods pdf file='F:\Users\hinashah\SASFiles\SLData\Report.pdf';
 *Look at output;
-proc contents data = c;
-proc corr data = c;
-    var d1;
-    with p_sl_full p_logit_full p_gam_full p_lasso_full p_rf_full p_nn_full;
+proc contents data = sldat.&sl_table.;
+proc corr data = sldat.&sl_table.;
+    var ga_edd;
+    with p_sl_full p_gam_full p_lasso_full p_rf_full p_nn_full;
 
 *MSE;
-data c;
-    set c;
-    d1se = (ga_edd - d1)**2;
+data sldat.&sl_table.;
+    set sldat.&sl_table.;
     slse = (ga_edd - p_sl_full)**2;
-    diffreg = d1 - ga_edd;
     diffsl = p_sl_full - ga_edd;
-proc means data = c mean std;
-    var ga_edd d1 p_sl_full d1se slse diffreg diffsl;
+    diffhadlock = hadlock_ga - ga_edd;
+    diffintergrowth = intergrowth_ga - ga_edd;
+    absdiffsl = abs(diffsl);
+    hadlockse = diffhadlock**2;
+    intergrowthse = diffintergrowth**2;
+    ga_edd_weeks = ga_edd/7.;
+
+proc means data = sldat.&sl_table. mean std median q1 q3;
+    var ga_edd p_sl_full diffsl diffhadlock diffintergrowth 
+    			absdiffsl hadlock_ga_diff intergrowth_ga_diff
+    			slse hadlockse intergrowthse;
 run;
 
 *Plots;
-ods graphics/reset imagename="SL plot" border=off imagefmt=png height=5in width=5in;
-proc sgplot data = c noautolegend noborder;
+ods graphics/reset imagename="SL plot 1 (GA vs SL)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data = sldat.&sl_table. noautolegend noborder;
     title1; title2;
-    scatter x = d1 y = p_sl_full / markerattrs = (color = green);
-    xaxis label="Linear model" values=(0 to 350 by 7) offsetmin=0 offsetmax=0 grid;
-    yaxis label="Superlearner" values=(0 to 350 by 7) offsetmin=0 offsetmax=0 grid;
-    lineparm x=0 y=0 slope=1;
+    scatter x = ga_edd_weeks y = diffsl / markerattrs = (color=green symbol=CircleFilled) transparency=0.7;
+    yaxis label="Superlearner Difference" values=(-35 to 35 by 5) offsetmin=0 offsetmax=0 grid;
+    xaxis label="True value" values=(12 to 44 by 1) offsetmin=0 offsetmax=0 grid;
+    refline 0 / axis=y lineattrs=(color=black thickness=2);
 run;
 
-ods graphics/reset imagename="SL plot 2" border=off imagefmt=png height=5in width=5in;
-proc sgplot data = c noautolegend noborder;
+ods graphics/reset imagename="SL plot 2 (GA vs Hadlock)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data = sldat.&sl_table. noautolegend noborder;
     title1; title2;
-    scatter x = ga_edd y = diffreg / markerattrs = (color = green);
-    yaxis label="Difference" values=(100 to -300 by 50) offsetmin=0 offsetmax=0 grid;
-    xaxis label="True value" values=(0 to 400 by 50) offsetmin=0 offsetmax=0 grid;
+    scatter x = ga_edd_weeks y = diffhadlock / markerattrs = (color=green symbol=CircleFilled) transparency=0.7;
+    yaxis label="Hadlock Difference" values=(-35 to 35 by 5) offsetmin=0 offsetmax=0 grid;
+    xaxis label="True value" values=(12 to 44 by 1) offsetmin=0 offsetmax=0 grid;
     refline 0 / axis=y lineattrs=(color=black thickness=2);
 run;
-ods graphics/reset imagename="SL plot 3" border=off imagefmt=png height=5in width=5in;
-proc sgplot data = c noautolegend noborder;
+
+ods graphics/reset imagename="SL plot 3 (GA vs Intergrowth)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data = sldat.&sl_table. noautolegend noborder;
     title1; title2;
-    scatter x = ga_edd y = diffsl / markerattrs = (color = green);
-    yaxis label="Superlearner" values=(100 to -300 by 50) offsetmin=0 offsetmax=0 grid;
-    xaxis label="True value" values=(0 to 400 by 50) offsetmin=0 offsetmax=0 grid;
+    scatter x = ga_edd_weeks y = diffintergrowth / markerattrs = (color=green symbol=CircleFilled) transparency=0.7;
+    yaxis label="Intergrowth Difference" values=(-35 to 35 by 5) offsetmin=0 offsetmax=0 grid;
+    xaxis label="True value" values=(12 to 44 by 1) offsetmin=0 offsetmax=0 grid;
     refline 0 / axis=y lineattrs=(color=black thickness=2);
+run;
+
+ods graphics/reset imagename="SL plot 4 (SL Diff Boxplot)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data=sldat.&sl_table.;
+    vbox diffsl / fillattrs=(color=CXCAD5E5) name='Box';
+    xaxis fitpolicy=splitrotate;
+    yaxis grid;
+run;
+ods graphics/reset imagename="SL plot 5 (Hadlock Diff Boxplot)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data=sldat.&sl_table.;
+    vbox diffhadlock / fillattrs=(color=CXCAD5E5) name='Box';
+    xaxis fitpolicy=splitrotate;
+    yaxis grid;
+run;
+ods graphics/reset imagename="SL plot 6 (Intergrowth Diff Boxplot)" border=off imagefmt=png height=5in width=5in;
+proc sgplot data=sldat.&sl_table.;
+    vbox diffintergrowth / fillattrs=(color=CXCAD5E5) name='Box';
+    xaxis fitpolicy=splitrotate;
+    yaxis grid;
 run;
 
 ods pdf close;
