@@ -21,13 +21,13 @@ Outputs: b1_ga_table - table with gestational ages,
 
 libname famdat  "F:\Users\hinashah\SASFiles";
 libname epic "F:\Users\hinashah\SASFiles\epic";
-
+libname uslib 'F:\Groups\Restricted_access_data\Ultrasound\';
 
 **** Path where the sas programs reside in ********;
 %let MainPath= F:\Users\hinashah\SASFiles\USFAMLIData;
 %let ReportsOutputPath = F:\Users\hinashah\SASFiles\Reports;
 
-*************** INPTUT Datasets ********************;
+*************** INPUT Datasets ********************;
 %let maintablename = famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
 %let pndb_table = pndb_famli_records_with_matches;
 %let r4_table = unc_famli_r4data20190820;

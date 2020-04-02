@@ -32,28 +32,75 @@ create table &famli_studies. as
     select distinct PatientID, studydttm, studydate, filename
     from &famli_table.;
 
+* Extract studydates from the metadata tags;
+proc sql;
+create table famdat.us_sr_studydates as
+select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+from uslib.famli_b1_instancetable
+where sr='True'
+UNION
+select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+from uslib.famli_b1b_instancetable
+where sr='True'
+UNION
+select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+from uslib.famli_b2_instancetable
+where sr='True'
+UNION
+select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+from uslib.famli_b3prelim_instancetable
+where sr='True'
+UNION
+select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+from uslib.famli_c1_instancetable
+where sr='True'
+;
 
-*Trying to remove duplicates using ids;
-create table dups as
-    select distinct ids, count_ids 
-    from 
-    (
-        select substr(filename, 1,23) as ids, count( substr(filename, 1,23)) as count_ids
-        from &famli_studies
-        group by substr(filename, 1,23) 
-    ) 
-    where
-        count_ids > 1 and 
-        count_ids < 100 /* Other format files, ex Src* */
-    order by count_ids desc;
+data famdat.us_sr_studydates (drop=dcm_found);
+set famdat.us_sr_studydates;
+dcm_found = index(lowcase(file), '.dcm');
 
-create table famdat.b1_deleted_records as
-    select * from &famli_studies 
-    where substr(filename, 1,23) in 
-        (
-            select ids from dups
-        );
+if dcm_found > 1 then file_sub = substr(file, 1, dcm_found-1);
+else file_sub = file;
+run;
 
+proc sql;
+create table b1_patid_studydate as
+select distinct a.filename, a.PatientID, b.studydate, b.study_dttm
+from
+	&famli_studies. as a
+	left join
+	famdat.us_sr_studydates as b
+on
+	a.filename = b.file_sub
+;
+
+create table b1_patid_studydate_sorted as
+select *, count(*) as num_studies_day
+from b1_patid_studydate
+group by PatientID, studydate
+;
+
+proc sort data=b1_patid_studydate_sorted out=b1_patid_studydate_sorted ;
+by descending study_dttm filename;
+run;
+
+proc sql;
+create table dups_pre as 
+select * from b1_patid_studydate_sorted
+where num_studies_day>1;
+
+data famdat.b1_deleted_records(keep= filename);
+set dups_pre;
+by descending study_dttm filename;
+if not (first.study_dttm and first.filename) then output;
+run;
+
+data &famli_studies. (drop=num_studies_day study_dttm);
+set b1_patid_studydate_sorted;
+run;
+
+proc sql;
 delete * from &famli_studies. 
     where filename in 
         (
@@ -68,7 +115,7 @@ delete * from &famli_table.
     )
 ;
 
-
+/*
 data &famli_studies.(drop= s studydttm);
     set &famli_studies.;
     s = substr(filename, 14,10);
@@ -78,3 +125,4 @@ data &famli_studies.(drop= s studydttm);
 
     format studydate mmddyy10.;
 run;
+*/
