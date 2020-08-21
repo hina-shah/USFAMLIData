@@ -152,7 +152,7 @@ create table to_be_deleted_epic as
             select * from 
             (
                 select distinct pat_mrn_id, episode_id, episode_working_edd, count(*) as count_edd 
-                from famdat.b1_ga_table_epic 
+                from famdat.&epic_ga_table.
                 group by pat_mrn_id, episode_id
             ) 
             where count_edd > 1
@@ -174,7 +174,7 @@ create table to_be_deleted_pndb as
             select * from 
             (
                 select distinct PatientID, BEST_EDC, count(*) as count_edd 
-                from famdat.b1_ga_table_pndb 
+                from famdat.&pndb_ga_table.
                 group by PatientID, BEST_EDC
             ) 
             where count_edd > 1
@@ -196,9 +196,31 @@ create table to_be_deleted_ga as
         (ga_edd < 42 or ga_edd > 308)
 ;
 
+
 data to_be_deleted;
 set to_be_deleted_sr to_be_deleted_epic to_be_deleted_pndb to_be_deleted_ga(drop=ga_edd);
 run;
+
+proc sql;
+create table famdat.b1_multifetals as
+select filename from to_be_deleted_sr 
+UNION 
+select filename from to_be_deleted_epic 
+UNION 
+select filename from to_be_deleted_pndb;
+run;
+
+proc sql;
+select 'Number of multifetals', count(*) from famdat.b1_multifetals;
+
+select 'Number of nonviable ga ultrasounds', count(*) from 
+    (select filename 
+        from to_be_deleted_ga 
+        where filename not in 
+            (select filename from  famdat.b1_multifetals)
+   ); 
+
+
 
 * Delete records ;
 proc sql;

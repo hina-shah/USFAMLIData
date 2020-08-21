@@ -366,11 +366,11 @@ create table famdat.epic_inconsistencies as
     from
         ( 
             select distinct pat_mrn_id, episode_working_edd, count(*) as count_episodes 
-            from famdat.b1_ga_table_epic 
+            from famdat.&epic_ga_table. 
             group by pat_mrn_id, episode_working_edd 
         ) as a
         inner join
-        famdat.b1_ga_table_epic as b
+        famdat.&epic_ga_table. as b
     on
         a.pat_mrn_id = b.pat_mrn_id and
         a.episode_working_edd = b.episode_working_edd and
