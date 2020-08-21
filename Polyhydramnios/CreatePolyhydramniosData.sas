@@ -1,10 +1,13 @@
 
 libname famdat  "F:\Users\hinashah\SASFiles";
-libname epic "F:\Users\hinashah\SASFiles\epic";
+libname epic "F:\Users\hinashah\SASFiles\epic720";
+libname uslib 'F:\Groups\Restricted_access_data\Ultrasound\';
+libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
 
 **** Path where the sas programs reside in ********;
-%let MainPath= F:\Users\hinashah\SASFiles\USFAMLIData;
-%let ReportsOutputPath = F:\Users\hinashah\SASFiles\PolyhydramniosReports;
+%let HomePath = F:\Users\hinashah\SASFiles;
+%let MainPath= &HomePath.\USFAMLIData;
+%let ReportsOutputPath = &HomePath.\Polyhydramnios;
 %let maintablename = famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
 %let pndb_table = pndb_famli_records_with_matches;
 %let r4_table = unc_famli_r4data20190820;
@@ -18,11 +21,11 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 %let GAPath= &MainPath.\FAMLI_GA;
 
 ****** Names of the main tables to be used ********;
-%let epic_ga_table = b1_ga_table_epic;
-%let pndb_ga_table = b1_ga_table_pndb;
-%let r4_ga_table = b1_ga_table_r4;
-%let sr_ga_table = b1_ga_table_sr;
-%let ga_final_table = b1_ga_table;
+%let epic_ga_table = poly_b1_ga_table_epic;
+%let pndb_ga_table = poly_b1_ga_table_pndb;
+%let r4_ga_table = poly_b1_ga_table_r4;
+%let sr_ga_table = poly_b1_ga_table_sr;
+%let ga_final_table = poly_b1_ga_table;
 
 ******* Define global values *******;
 %let max_ga_cycle = 308;
@@ -34,6 +37,26 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 %let biom_final_output_table = b1_biom_all;
 %let biom_subset_measures = b1_biom_subset_measures;
 
+* ********************** Clinical variables *********;
+**** Path where the clinical sas programs reside in ********;
+%let ClinicalPath= &MainPath.\FAMLI_Clinical;
+
+****** Names of the main tables to be used ********;
+%let ga_table = poly_b1_ga_table;
+
+****** Names of output tables to be generated *****;
+%let mat_info_pndb_table = poly_b1_maternal_info_pndb;
+%let mat_info_epic_table = poly_b1_maternal_info_epic;
+%let mat_final_output_table = poly_b1_maternal_info;
+
+******* Define global values *******;
+%let max_ga_cycle = 308;
+%let ga_cycle = 280;
+%let min_height = 40;
+%let max_height = 90;
+%let min_weight = 90; /* in lbs */
+%let max_weight = 400; /* in lbs */
+
 **** create subset ********;
 %include "&MainPath/Polyhydramnios/B1_dataset_processing_with_no_biometry.sas";
 
@@ -42,6 +65,9 @@ libname epic "F:\Users\hinashah\SASFiles\epic";
 
 **** Create biometry table ********;
 %include "&MainPath/FAMLI_Biom/B1_MAIN_create_biometry_tables.sas";
+
+**** Create maternal information ********;
+%include "&MainPath/FAMLI_Clinical/B1_MAIN_create_clinical.sas";
 
 
 %macro createEFTable(biometry=, biomvname=, shortname=);
@@ -156,172 +182,28 @@ run;
     csvfile=F:/Users/hinashah/SASFiles/polyhydramnios_all.csv   
 );
 
-ods pdf file='F:/Users/hinashah/SASFiles/polyhydramnios_analysis.pdf' startpage=NO;
-title;
-proc sql;
-select 'Number of studies with Amniotic Fluid Index LEN q1 (Quadrant 1)' as title, count(*) as count
-    from (select * from famdat.polyhydramnios_complete where not missing(afiq1_1));
+%include "&MainPath/Polyhydramnios/AddClinicalInformation.sas";
 
-select 'Number of studies with Amniotic Fluid Index LEN q2 (Quadrant 2)' as title, count(*) as count
-    from (select * from famdat.polyhydramnios_complete where not missing(afiq2_1));
-
-select 'Number of studies with Amniotic Fluid Index LEN q3 (Quadrant 3)' as title, count(*) as count
-    from (select * from famdat.polyhydramnios_complete where not missing(afiq3_1));
-
-select 'Number of studies with Amniotic Fluid Index LEN q4 (Quadrant 4)' as title, count(*) as count
-    from (select * from famdat.polyhydramnios_complete where not missing(afiq4_1));
-
-select 'Number of ALL patients:' as title, count(*) as count
-    from (select distinct PatientID from famdat.b1_biom_all);
-
-select 'Number of patients with GA>=140:' as title, count(*) as count
-    from (select distinct PatientID from famdat.b1_biom_all where ga_edd>=140);
-    
-%macro createreports(tablename=, subsetstring=);
-
-proc sql;
-select 'Number of studies with an AFI' as title, "&subsetstring" as subsettype, count(*) as count
-    from (select * from &tablename. where not missing(AFI));
-select 'Number of patients with AFI calculated' as title, count(*) as count 
-     from (select distinct PatientID from &tablename. where not missing(AFI));
-
-select 'Total number of ultrasounds with AFI or calculated MVP present' as title, "&subsetstring" as subsettype, count(*) as count from
-    (select * from &tablename. where not missing(AFI) or not missing(CalcMVP));
-select 'Number of patients with AFI calculated' as title, count(*) as count 
-     from (select distinct PatientID from &tablename. where not missing(AFI) or not missing(CalcMVP));
-
-
-select "Number of cases when MVP = MAX(AFIQs) <= 2" as title, "&subsetstring" as subsettype, count(*) as count from
-    (select * from &tablename. where CalcMVP <= 2 and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where CalcMVP <= 2 and not missing(CalcMVP) );
-
-select 'Number of cases when MVP = MAX(AFIQs) >8' as title, "&subsetstring" as subsettype, count(*) as count from
-    (select * from &tablename. where CalcMVP >8 and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where CalcMVP >8 and not missing(CalcMVP) );
-
-select 'Number of cases when AFI <=5' as title, "&subsetstring" as subsettype, count(*) as count from
-    (select * from &tablename. where AFI <=5 and not missing(AFI));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI <= 5 and not missing(AFI));
-
-select 'Number of cases when AFI > 24' as title, "&subsetstring" as subsettype, count(*) as count from
-    (select * from &tablename. where AFI > 24 and not missing(AFI));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI > 24 and not missing(AFI) );
-
-select 'Number of cases when MVP = MAX(AFIQs)<=2, and AFI <=5 (and vice versa)' as title, "&subsetstring" as subsettype,
-    'AFI <= 5 and CalcMVP <=2' as condition, count(*) as count from 
-    (select * from &tablename. where AFI <= 5 and CalcMVP <=2 and not missing(AFI) and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI <= 5 and CalcMVP <=2 and not missing(AFI) and not missing(CalcMVP) );
-
-select 'Number of cases when MVP = MAX(AFIQs) > 8, and AFI > 24 (and vice versa)' as title, "&subsetstring" as subsettype,
-    'AFI > 24 and CalcMVP > 8' as condition, count(*) as count from 
-    (select * from &tablename. where AFI > 24 and CalcMVP > 8 and not missing(AFI) and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI > 24 and CalcMVP > 8 and not missing(AFI) and not missing(CalcMVP) );
-
-
-select 'Number of cases when MVP = MAX(AFIQs) < 8, and AFI >=24 (and vice versa)' as title, "&subsetstring" as subsettype,
-    'AFI >= 24 and CalcMVP < 8' as condition, count(*) as count from 
-    (select * from &tablename. where AFI >=24  and CalcMVP < 8 and not missing(AFI) and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI >=24  and CalcMVP < 8 and not missing(AFI) and not missing(CalcMVP) );
-
-select 'Number of cases when MVP = MAX(AFIQs) >= 8, and AFI < 24 (and vice versa)' as title, "&subsetstring" as subsettype,
-    'AFI < 24 and CalcMVP >= 8' as condition, count(*) as count from 
-    (select * from &tablename. where AFI < 24 and CalcMVP >= 8 and not missing(AFI) and not missing(CalcMVP));
-select 'Number of Patients for Above:' as title, count(*) as count from
-    (select distinct PatientID from &tablename. where AFI < 24 and CalcMVP >= 8 and not missing(AFI) and not missing(CalcMVP) );
-
-%mend;
-
-*%createreports(tablename=famdat.polyhydramnios_with_afi_mvp, subsetstring=ALL);
-
-proc sql;
-create table famdat.polyhydramnios_last_20_weeks as
-    select * from famdat.polyhydramnios_with_afi_mvp
-    where ga_edd >= 140;
- 
-%createreports(tablename=famdat.polyhydramnios_last_20_weeks, subsetstring= GA>=140);
+data famdat.poly_with_afi_mvp_clinical;
+set famdat.poly_with_afi_mvp_clinical;
+label ga_edd='Clinician approved GA';
+label delivery_methdo='Delivery method';
+label delivery_blood_loss='Blood Loss at Delivery';
+label cord_prolapse='Cord Prolaps Y/N';
+label delivery_resusitation='Delivery resusitation method';
+label living_status='Living Status';
+label baby_icu_yn='Baby ICU admission Y/N';
+label prem_rupture='Premature rupture Y/N';
+label congenital_anomalies='Congenital Anomalies Y/N';
+label meconium='Meconium Y/N';
+label labor_induction='Labor Induction Y/N';
+run;
 
 %ds2csv(
-    data=famdat.polyhydramnios_last_20_weeks,
+    data=famdat.poly_with_afi_mvp_clinical,
     runmode=b,
-    csvfile=F:/Users/hinashah/SASFiles/polyhydramnios_last_20_weeks.csv   
+    csvfile=F:/Users/hinashah/SASFiles/polyhydramnios_all_clinical.csv   
 );
 
-title 'Scatter plot/regression for all AFI/MVP values with GA > 20 weeks';
-/*--Set output size--*/
-ods graphics / reset imagemap;
+%include "&MainPath/Polyhydramnios/Polyhydramnios_Analysis.sas";
 
-/*--SGPLOT proc statement--*/
-proc sgplot data=FAMDAT.POLYHYDRAMNIOS_LAST_20_WEEKS;
-    /*--Fit plot settings--*/
-    reg x=CalcMVP y=AFI / nomarkers CLM CLI alpha=0.01 name='Regression' LINEATTRS=(color=red);
-
-    /*--Scatter plot settings--*/
-    scatter x=CalcMVP y=AFI / transparency=0.0 name='Scatter';
-
-    /*--X Axis--*/
-    xaxis grid;
-
-    /*--Y Axis--*/
-    yaxis grid;
-run;
-
-ods graphics / reset;
-
-proc sql;
-create table work.subset_small_values as
-    select AFI, CalcMVP from famdat.polyhydramnios_last_20_weeks
-    where AFI <= 5 and CalcMVP <=2 and not missing(AFI) and not missing(CalcMVP)
-;
-
-create table work.subset_large_values  as
-    select AFI, CalcMVP from famdat.polyhydramnios_last_20_weeks
-    where AFI > 24 and CalcMVP > 8 and not missing(AFI) and not missing(CalcMVP)
-; 
-
-
-title 'Analysis on AFI>24 and MVP >8';
-proc means data=work.subset_large_values;
-run;
-
-ods noproctitle;
-ods graphics / imagemap=on;
-title;
-proc corr data=WORK.SUBSET_LARGE_VALUES pearson nosimple noprob 
-        plots=matrix(histogram);
-run;
-
-ods graphics on;
-proc corr data=WORK.SUBSET_LARGE_VALUES
-          plots=scatter nocorr nosimple;
-   var AFI CalcMVP;
- run;
-ods graphics off;
-
-
-title 'Analysis on AFI<=5 and MVP <=2';
-
-proc means data=work.subset_small_values;
-run;
-
-ods noproctitle;
-ods graphics / imagemap=on;
-title;
-proc corr data=WORK.SUBSET_SMALL_VALUES pearson nosimple noprob 
-        plots=matrix(histogram);
-run;
-
-ods graphics on;
-proc corr data=WORK.SUBSET_SMALL_VALUES
-          plots=scatter nocorr nosimple;
-   var AFI CalcMVP;
- run;
-ods graphics off;
-
-ods pdf close;
