@@ -45,7 +45,7 @@ else
 run;
 
 * merge with the gestational age table;
-%mergedatasets(set1=b1_ga_table, set2=&biom_created_table., outset=&biom_final_output_table.);
+%mergedatasets(set1=&ga_final_table., set2=&biom_created_table., outset=&biom_final_output_table.);
 
 data famdat.&biom_final_output_table.;
 set famdat.&biom_final_output_table.(drop=studydttm episode_edd edd_source);

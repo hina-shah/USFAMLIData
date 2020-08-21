@@ -38,6 +38,7 @@ set famdat.biomvar_details;
 call execute( catt('%processArray(bn=', shortname, ');'));
 run;
 
+/*Create a dataset that keeps first and last two measurements along with their means*/
 data famdat.&biom_subset_measures. (keep = filename PatientID studydate ga_edd lmp 
                                            fl_first: fl_last: bp_first: bp_last: 
                                            hc_first: hc_last: ac_first: ac_last:
