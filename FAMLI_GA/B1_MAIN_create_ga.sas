@@ -129,4 +129,7 @@ proc sql;
         format=YYMMDD10. label="Maximum date" from famdat.&ga_final_table.;
 quit;
 
+proc sql;
+select 'Number of patinets:', count(*) from (select distinct PatientID from famdat.&ga_final_table);
+
 ods pdf close;
