@@ -1,11 +1,18 @@
+options nonotes;
+dm "log; clear; out; clear; results; clear;";
+
+* Script to generate data as input to the SuperLearner macro. This gnerates two sets of data;
+
+%let target_location = P:\Users\hinashah\SASFiles\SLData_New;
 
 libname famdat  "P:\Users\hinashah\SASFiles";
-libname sldat "P:\Users\hinashah\SASFiles\SLData_ExtraLearners";
+libname sldat "&target_location.";
 
 %let inputtable = famdat.b1_full_table;
 
-ods pdf file="P:\Users\hinashah\SASFiles\SLData_ExtraLearners\CreateTablesOutput.pdf";
+ods pdf file="&target_location.\CreateTablesOutput.pdf" startpage=no;
 
+title;
 proc sql;
 create table sldat.SL_Table1_All as
     select filename, PatientID, studydate, lmp, ga_edd, episode_edd,
@@ -27,6 +34,9 @@ set sldat.SL_Table1_All;
     if not missing(tobacco_use) then do;
         current_smoker = prxmatch('/(CURRENT)|(Diagnosed)/',tobacco_use) > 0;
         former_smoker = prxmatch('/FORMER/', tobacco_use) >0;
+        if current_smoker=1 then smoker_status = 1;
+        if former_smoker=1 then smoker_status=2;
+        if current_smoker=0 and former_smoker=0 then smoker_status=0;
     end;
     
     mom_weight_lb = mom_weight_oz/16.;
@@ -43,7 +53,8 @@ set sldat.SL_Table1_All;
     hc_mean = hc_1;
     if not missing(hc_2) then hc_mean = mean(hc_1, hc_2);
     
-    hadlock_ga = (10.85+0.06*hc_mean*fl_mean + 0.67*bp_mean + 0.168*ac_mean)*7;
+    if fl_mean > 0. and bp_mean > 0. and ac_mean > 0. and hc_mean > 0. then 
+        hadlock_ga = (10.85+0.06*hc_mean*fl_mean + 0.67*bp_mean + 0.168*ac_mean)*7;
     
     fl_mean = fl_mean*10;
     bp_mean = bp_mean*10;
@@ -56,67 +67,86 @@ set sldat.SL_Table1_All;
     intergrowth_ga = exp(logintergrowth);
     end;
     
-    hadlock_ga_diff = abs(hadlock_ga-ga_edd);
-    intergrowth_ga_diff = abs(intergrowth_ga - ga_edd);
-    hadlock_intergrowth_diff = abs(hadlock_ga_diff - intergrowth_ga_diff);
-
-run;
-
-ods graphics / reset  imagemap;
-title "Box plot for the diff in ga of hadlock from edd based for all ";
-/*--SGPLOT proc sttatement--*/
-proc sgplot data=sldat.SL_Table1_All;
-    /*--TITLE and FOOTNOTE--*/
-    /*--Box Plot settings--*/
-    vbox hadlock_ga_diff / fillattrs=(color=CXCAD5E5) name='Box';
-
-    /*--Category Axis--*/
-    xaxis fitpolicy=splitrotate;
-
-    /*--Response Axis--*/
-    yaxis grid;
+    if fl_mean > 0. and bp_mean > 0. and ac_mean > 0. and hc_mean > 0. then do;
     
+        nichd_ga = 10.6 - (0.1683*bp_mean) + (0.0452*hc_mean) + (0.0302*ac_mean) + 
+                   (0.0576*fl_mean) + (0.0025*bp_mean*bp_mean) + 
+                   (0.0017*fl_mean*fl_mean) + (0.0005*(bp_mean * ac_mean)) -
+                   (0.0052*(bp_mean * fl_mean)) - (0.0003*(hc_mean * ac_mean)) + 
+                   (0.0008*(hc_mean * fl_mean)) + (0.0006*(ac_mean * fl_mean));
+       nichd_ga = nichd_ga*7.0;
+    end;
+    
+    if ga_edd < 196 then trimester =0; 
+    else trimester = 1;
+    
+    hadlock_intergrowth_diff = abs(absdiffhadlock - absdiffintergrowth);
+    
+    diffhadlock = hadlock_ga - ga_edd;
+    diffintergrowth = intergrowth_ga - ga_edd;
+    diffnichd = nichd_ga - ga_edd;
+    
+    absdiffhadlock = abs(hadlock_ga-ga_edd);
+    absdiffintergrowth = abs(intergrowth_ga - ga_edd);
+    absdiffnichd = abs(nichd_ga - ga_edd);
+    
+    sehadlock = diffhadlock**2;
+    seintergrowth = diffintergrowth**2;
+    senichd = diffnichd**2;
+    
+    ga_edd_weeks = ga_edd/7.;
 run;
 
+*Create categorical variables for binary variables;
+data sldat.SL_Table1_Categorical;
+set sldat.SL_Table1_All;
 
-title "Box plot for the diff in ga of intergrowth from edd based for all ";
-proc sgplot data=sldat.SL_Table1_All;
-    /*--TITLE and FOOTNOTE--*/
-    /*--Box Plot settings--*/
-    vbox intergrowth_ga_diff / fillattrs=(color=CXCAD5E5) name='Box';
-
-    /*--Category Axis--*/
-    xaxis fitpolicy=splitrotate;
-
-    /*--Response Axis--*/
-    yaxis grid;
+    if not missing(tobacco_use) then do;
+        current_smoker = prxmatch('/(CURRENT)|(Diagnosed)/',tobacco_use) > 0;
+        former_smoker = prxmatch('/FORMER/', tobacco_use) >0;
+        if current_smoker=1 then smoker_status = 1;
+        if former_smoker=1 then smoker_status=2;
+        if current_smoker=0 and former_smoker=0 then smoker_status=0;
+    end;
+    else do;
+        current_smoker=2;
+        former_smoker=2;
+        smoker_status = 3;
+    end;
+    
+    if missing(hiv) then hiv = 2;
+    if missing(chronic_htn) then chronic_htn = 2;
+    if missing(preg_induced_htn) then preg_induced_htn = 2;
+    if missing(diabetes) then diabetes = 2;
+    if missing(gest_diabetes) then gest_diabetes = 2;
+    
+    if fl_1 > 0. and bp_1 > 0. and  hc_1 > 0. and ac_1 > 0. 
+        and mom_age_edd >= 13 and mom_age_edd <= 49
+        and mom_weight_lb > 0. and mom_height_in > 0.
+    then output;
 run;
+proc sql;
+select "Number of Ultrasounds with complete categorical information:", count(*) from sldat.SL_Table1_Categorical;
 
-title "Box plot for the diff in ga by intergrowth from hadlock for all ";
-proc sgplot data=sldat.SL_Table1_All;
-    /*--TITLE and FOOTNOTE--*/
-    /*--Box Plot settings--*/
-    vbox hadlock_intergrowth_diff / fillattrs=(color=CXCAD5E5) name='Box';
+create table sldat.SL_Table1_Categorical as
+    select *
+    from sldat.SL_Table1_Categorical
+    where absdiffhadlock <= 30 and absdiffintergrowth <=30;
+select "Number of Ultrasounds with complete categorical information and regulating ga_diff:", count(*) from sldat.SL_Table1_Categorical;
 
-    /*--Category Axis--*/
-    xaxis fitpolicy=splitrotate;
-
-    /*--Response Axis--*/
-    yaxis grid;
-run;
-
-title;
-ods graphics/reset;
-proc means data=sldat.SL_Table1_All N NMISS  MEDIAN Q1 Q3 MEAN MIN MAX STD; run;
 
 * For variable to be fed into the superlearner chose them to be always present;
 proc sql;
 create table sldat.SL_Table1_NonMissing as
-    select  filename, PatientID, studydate, lmp, ga_edd, episode_edd,
+    select  filename, PatientID, studydate, lmp, ga_edd, ga_edd_weeks, trimester, episode_edd,
                     fl_1, bp_1, hc_1,ac_1,
-                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker,
-                    chronic_htn, preg_induced_htn, diabetes, gest_diabetes, hadlock_ga, intergrowth_ga,
-                    hadlock_ga_diff, intergrowth_ga_diff, hadlock_intergrowth_diff
+                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker, smoker_status,
+                    chronic_htn, preg_induced_htn, diabetes, gest_diabetes, 
+                    hadlock_ga, intergrowth_ga, nichd_ga,
+                    absdiffhadlock, absdiffintergrowth, absdiffnichd,
+                    diffhadlock, diffintergrowth, diffnichd,
+                    sehadlock, seintergrowth, senichd,
+                    hadlock_intergrowth_diff
     from sldat.SL_Table1_All
     where
         not missing(ga_edd) and not missing(episode_edd)
@@ -127,7 +157,9 @@ create table sldat.SL_Table1_NonMissing as
         and not missing(mom_age_edd) and mom_age_edd >= 13 and mom_age_edd <= 49
         and not missing (mom_weight_lb)
         and not missing(mom_height_in)
-        and not missing(hiv) and not missing(tobacco_use)
+        and not missing(hiv) 
+        and not missing(current_smoker)
+        and not missing(former_smoker)
         and not missing(chronic_htn) and not missing(preg_induced_htn) 
         and not missing(diabetes) and not missing(gest_diabetes)
 ;
@@ -136,17 +168,21 @@ select "Number of Ultrasounds with complete information:", count(*) from sldat.S
 create table sldat.SL_Table1_NonMissing as
     select *
     from sldat.SL_Table1_NonMissing
-    where hadlock_ga_diff <= 30 and intergrowth_ga_diff <=30;
+    where absdiffhadlock <= 30 and absdiffintergrowth <=30;
 select "Number of Ultrasounds with complete information and regulating ga_diff:", count(*) from sldat.SL_Table1_NonMissing;
 
 
 proc sql;
 create table sldat.SL_Table1_NonMissing_Two as
-    select  filename, PatientID, studydate, lmp, ga_edd, episode_edd,
+    select  filename, PatientID, studydate, lmp, ga_edd, ga_edd_weeks, trimester, episode_edd,
                     fl_1, fl_2, bp_1, bp_2, hc_1, hc_2, ac_1, ac_2,
-                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker,
-                    chronic_htn, preg_induced_htn, diabetes, gest_diabetes, hadlock_ga, intergrowth_ga,
-                    hadlock_ga_diff, intergrowth_ga_diff, hadlock_intergrowth_diff
+                    mom_age_edd, mom_weight_lb, mom_height_in, hiv, current_smoker, former_smoker, smoker_status,
+                    chronic_htn, preg_induced_htn, diabetes, gest_diabetes, 
+                    hadlock_ga, intergrowth_ga, nichd_ga,
+                    absdiffhadlock, absdiffintergrowth, absdiffnichd,
+                    diffhadlock, diffintergrowth, diffnichd,
+                    sehadlock, seintergrowth, senichd,
+                    hadlock_intergrowth_diff
     from sldat.SL_Table1_All
     where
         not missing(ga_edd) and not missing(episode_edd)
@@ -160,7 +196,9 @@ create table sldat.SL_Table1_NonMissing_Two as
         and not missing(ac_2) and ac_2>0 
         and not missing(mom_age_edd) and not missing (mom_weight_lb)
         and not missing(mom_height_in)
-        and not missing(hiv) and not missing(tobacco_use)
+        and not missing(hiv) 
+        and not missing(current_smoker) 
+        and not missing(former_smoker)
         and not missing(chronic_htn) and not missing(preg_induced_htn) 
         and not missing(diabetes) and not missing(gest_diabetes)
 ;
@@ -168,9 +206,7 @@ select "Number of Ultrasounds with complete information and two biometries:", co
 
 %MACRO RandomStudySelection(indata=,
                             out_suffix=
-                            )
-;
-
+                            );
 title;
 * Get the pregnancies from this table ;
 proc sql;
@@ -251,24 +287,44 @@ run;
 
 data sldat.SL_FinalRandSelectTable1&out_suffix.;
 set sldat.SL_FinalRandSelectTable1&out_suffix.;
-label ga_weeks="Gestational Age in weeks";
-ga_weeks = ga_edd/7.;
+label ga_edd_weeks="Gestational Age in weeks";
+label trimester="2nd or 3rd trimester (0/1)";
+label hadlock_ga="Hadlock GA";
+label intergrowth_ga="Intergrowth GA";
+label nichd_ga = "NICHD GA";
+label absdiffhadlock = "Hadlock Absolute Diff";
+label absdiffintergrowth = "Intergrowth Absolute Diff";
+label absdiffnichd = "NICHD Absolute Diff";
+label diffhadlock = "Hadlock Diff";
+label diffintergrowth = "Intergrowth Diff";
+label diffnichd = "NICHD Diff";
+label sehadlock = "Hadlock Squared Error";
+label seintergrowth = "Intergrowth Squared Error";
+label senichd = "NICHD Squared Error";
 run;
 
 proc univariate data=sldat.SL_FinalRandSelectTable1&out_suffix. noprint;
     title1 "Histogram of gestational ages in weeks &out_suffix ";
-    histogram ga_weeks / endpoints= 13 to 43 by 1;
+    histogram ga_edd_weeks / endpoints= 13 to 43 by 1;
 run;
 
 %ds2csv(
     data=sldat.SL_FinalRandSelectTable1&out_suffix.,
     runmode=b,
     labels=N,
-    csvfile=P:/Users/hinashah/SASFiles/SL_FinalRandSelectTable1&out_suffix..csv   
+    csvfile=&target_location./SL_FinalRandSelectTable1&out_suffix..csv   
 );
 
+title "Frequencies for Categorical Variables";
+
+proc freq data=sldat.SL_FinalRandSelectTable1&out_suffix.;
+    tables hiv chronic_htn preg_induced_htn diabetes gest_diabetes current_smoker 
+        former_smoker smoker_status;
+run;
 %MEND;
 
+title 'Processing the dataset without missing information';
+* Select random studies for all non-missing;
 %RandomStudySelection(indata= sldat.SL_Table1_NonMissing,
                             out_suffix=
                             );
@@ -277,8 +333,6 @@ set sldat.SL_Table1_NonMissing;
 if ga_edd < 196 then output sldat.SL_Table1_NonMissing_2Trim;
 else output sldat.SL_Table1_NonMissing_3Trim;
 run;
-
-
 %RandomStudySelection(indata= sldat.SL_Table1_NonMissing_2Trim,
                             out_suffix= _2Trim
                             );
@@ -287,14 +341,35 @@ run;
                             out_suffix= _3Trim
                             );
 
+title 'Processing the dataset with categorical variables forbinary variable';
+* Select random studies when binary variables are converted to categorical variables;
+%RandomStudySelection(indata= sldat.SL_Table1_Categorical,
+                            out_suffix=_Cat
+                            );
+data sldat.SL_Table1_Cat2Tr sldat.SL_Table1_Cat3Tr;
+set sldat.SL_Table1_Categorical;
+if ga_edd < 196 then output sldat.SL_Table1_Cat2Tr;
+else output sldat.SL_Table1_Cat3Tr;
+run;
+%RandomStudySelection(indata= sldat.SL_Table1_Cat2Tr,
+                            out_suffix= _Cat2Tr
+                            );
+
+%RandomStudySelection(indata= sldat.SL_Table1_Cat3Tr,
+                            out_suffix= _Cat3Tr
+                            );
 ods graphics / reset;
 
+proc surveyselect data=sldat.SL_FinalRandSelectTable1_Cat 
+      method=srs n=5000 out=sldat.SL_FinalRandSelectTable1_C5k noprint;
+   run;
+
 proc surveyselect data=sldat.SL_FinalRandSelectTable1
-      method=srs n=5000 out=sldat.SL_FinalRandSelectTable1_sub5K;
+      method=srs n=5000 out=sldat.SL_FinalRandSelectTable1_sub5K noprint;
    run;
    
 proc surveyselect data=sldat.SL_FinalRandSelectTable1
-      method=srs n=10000 out=sldat.SL_FinalRandSelectTable1_sub10K;
+      method=srs n=10000 out=sldat.SL_FinalRandSelectTable1_sub10K noprint;
    run;
 
 ods pdf close;

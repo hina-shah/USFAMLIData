@@ -305,7 +305,7 @@ CVSuperLearner:
                      outcvresults=cvsl_summary,
                      printfoldres=FALSE ,
                      printlearner=FALSE,
-                     cleanup=TRUE ,
+                     cleanup=FALSE ,
                      trimbound=0.001 ,
                      shuffle=TRUE,
                      seed=12345,
@@ -1174,12 +1174,12 @@ RUN;
          %IF &book=r_sl %THEN %LET _pkg=SuperLearner;;
          %IF &book=r_bkmr %THEN %LET _pkg=bkmr;;
          %IF &book=r_wqs %THEN %DO;
-         	%LET _pkg=SLmix;;
-         	%LET __git=alexpkeil1;
+            %LET _pkg=SLmix;;
+            %LET __git=alexpkeil1;
          %END;
          %IF &book=r_gwqs %THEN %DO;
-         	%LET _pkg=SLmix;;
-         	%LET __git=alexpkeil1;
+            %LET _pkg=SLmix;;
+            %LET __git=alexpkeil1;
          %END;
        %END;
        %IF &__git= %THEN %DO;
@@ -1239,12 +1239,12 @@ RUN;
          %IF &book=r_sl %THEN %LET _pkg=SuperLearner;;
          %IF &book=r_bkmr %THEN %LET _pkg=bkmr;;
          %IF &book=r_wqs %THEN %DO;
-         	%LET _pkg=SLmix;;
-         	%LET __git=alexpkeil1;
+            %LET _pkg=SLmix;;
+            %LET __git=alexpkeil1;
          %END;
          %IF &book=r_gwqs %THEN %DO;
-         	%LET _pkg=SLmix;;
-         	%LET __git=alexpkeil1;
+            %LET _pkg=SLmix;;
+            %LET __git=alexpkeil1;
          %END;
        %END;
        %IF &__git= %THEN %DO;
@@ -1396,7 +1396,7 @@ RUN;
   %END; 
   DATA fake;
     SET __haltm0001_ (OBS=1);
-	WHERE &y>.z;
+    WHERE &y>.z;
   * main terms only first;
   PROC GLMMOD DATA=fake OUTPARM=__halmains NOPRINT NAMELEN=200;
     MODEL &Y = &__slhalvars / NOINT ;
@@ -1423,27 +1423,27 @@ RUN;
   DATA _NULL_;
     FILE terms;
     IF _N_=1 THEN DO;
-	  PUT "*begin creation of full design matrix;";
+      PUT "*begin creation of full design matrix;";
       PUT "DO n = 1 TO %TRIM(&halnt);";
-	END;
+    END;
     SET __halterms END=eof;
-	effname = STRIP(effname);
+    effname = STRIP(effname);
     t = 1;
-	PUT '  __Hi[' _N_ ',n] = 1' @@;
-	DO WHILE(SCAN(effname, t, '*')^='');
-	  nm = STRIP(SCAN(effname, t, '*'));
+    PUT '  __Hi[' _N_ ',n] = 1' @@;
+    DO WHILE(SCAN(effname, t, '*')^='');
+      nm = STRIP(SCAN(effname, t, '*'));
       PUT '*(' nm ">= _" nm +(-1)'_[n])' @@;
       t=t+1;
-	END;
-	PUT ';';
+    END;
+    PUT ';';
     IF EOF THEN DO;
       PUT 'END;';
-	  PUT '*end creation of full design matrix;';
-	END;
+      PUT '*end creation of full design matrix;';
+    END;
   RUN;
   /*1. create indicator variables for I[i,j,m] = I(X[i,m] <= X[j,m]) for i = 1..N, j=1..N, m=1..P*/
   DATA __halmat;
-	*this step should be done only in the training data!;
+    *this step should be done only in the training data!;
     SET __haltm0001_;
     WHERE &y > .z; 
     %LET __hidx = 1;
@@ -1451,10 +1451,10 @@ RUN;
       %LET __x = %SCAN(&__halmains, &__hidx, ' ');
       ARRAY _&__x._[&halnt] ;
       %LET __hidx = %EVAL(&__hidx+1);
-	  RETAIN _&__x._:;
-	  KEEP _&__x._:;
+      RETAIN _&__x._:;
+      KEEP _&__x._:;
     %END;
-	*outer loop over variables, inner loop over sample;
+    *outer loop over variables, inner loop over sample;
     %LET __hidx = 1;
     %DO %WHILE(%SCAN(&__slhalvars, &__hidx, ' ')^=);
       DO i = 1 TO &halnt;
