@@ -20,7 +20,7 @@ Outputs: A unified database file for all biometry measurements: B1_MATERNAL_INFO
 
 ***** Call Epic logic ***************;
 %include "&ClinicalPath/B1_get_epic_mat_info.sas";
-
+/*
 ***** Merge the tables into one ********;
 * Find studies not populated by epic;
 proc sql;
@@ -53,25 +53,117 @@ create table famdat.&mat_final_output_table. as
     select * from pndb_leftovers
         OUTER UNION CORR
         select * from famdat.&mat_info_epic_table.;
+*/
 
+* Coalesce clinical data;
+proc sql;
+create table famdat.&mat_final_output_table. as 
+    select coalesce(a.filename, b.filename) as filename,
+           coalesce(a.ga, b.ga) as ga,
+            coalesce(a.PatientID, b.PatientID) as PatientID,
+            coalesce(a.studydate , b.studydate ) as studydate,
+            coalesce(a.DOC, b.DOC) as DOC,
+            coalesce(a.episode_working_edd, b.episode_working_edd) as episode_working_edd,
+            coalesce(a.delivery_date, b.delivery_date) as delivery_date,
+            coalesce(a.mom_birth_date, b.mom_birth_date) as mom_birth_date,
+            coalesce(a.mom_age_edd, b.mom_age_edd) as mom_age_edd,
+            coalesce(a.mom_weight_oz, b.mom_weight_oz) as mom_weight_oz,
+            coalesce(a.mom_height_in, b.mom_height_in) as mom_height_in,
+            coalesce(a.birth_wt_gms, b.birth_wt_gms) as birth_wt_gms,
+            coalesce(a.birth_ga_days, b.birth_ga_days) as birth_ga_days,
+            coalesce(a.hiv, b.hiv) as hiv,
+            coalesce(a.tobacco_use, b.tobacco_use) as tobacco_use,
+            coalesce(a.tobacco_pak_per_day, b.tobacco_pak_per_day) as tobacco_pak_per_day,
+            a.smoking_quit_days,
+            coalesce(a.chronic_htn, b.chronic_htn) as chronic_htn,
+            coalesce(a.preg_induced_htn, b.preg_induced_htn) as preg_induced_htn,
+            coalesce(a.diabetes, b.diabetes) as diabetes,
+            coalesce(a.gest_diabetes, b.gest_diabetes) as gest_diabetes,
+            coalesce(a.fetal_growth_restriction, b.fetal_growth_restriction) as fetal_growth_restriction
+    from 
+        famdat.&mat_info_epic_table. as a
+        full join
+        famdat.&mat_info_pndb_table. as b
+    on
+        a.filename = b.filename and
+        a.PatientID = b.PatientID and
+        a.studydate = b.studydate
+;
+
+***************** Adding variables **********************;
 data famdat.&mat_final_output_table.;
 retain filename ga PatientID studydate DOC episode_working_edd ga_from_edd delivery_date
     mom_birth_date mom_age_edd mom_weight_oz mom_height_in
     birth_wt_gms birth_ga_days
     hiv tobacco_use tobacco_pak_per_day smoking_quit_days
     chronic_htn preg_induced_htn
-    diabetes gest_diabetes;
+    diabetes gest_diabetes fetal_growth_restriction;
 set famdat.&mat_final_output_table.;
     ga_from_edd  = &ga_cycle. - (episode_working_edd - studydate);
     if mom_height_in < &min_height. or mom_height_in > &max_height. then mom_height_in = .;
     if mom_weight_oz < &min_weight.*16 or mom_weight_oz > &max_weight.*16 then mom_weight_oz = .;
 run;
 
-*************** Adding labels to the data *******************;
+****************** Taking care of duplicates ****************;
+
+* Count missing variables to chose a duplicate row for the same study with more available variables;
+data b1_maternal_info_counts;
+set famdat.&mat_final_output_table.;
+varcount = cmiss(of delivery_date--fetal_growth_restriction);
+run;
+
+proc sql;
+create table selected as 
+    select distinct a.* 
+    from
+        b1_maternal_info_counts as a
+        inner join
+        (
+            /* Choose rows with min number of missing variables*/
+            select *, min(varcount) as minvarcount
+            from b1_maternal_info_counts
+            group by filename
+         ) as b
+         on 
+         a.PatientID = b.PatientID and
+         a.studydate = b.studydate and
+         a.varcount = b.minvarcount
+;
+
+* Consider multiple rows for the same filename to be multifetals for now.;
+proc sql;
+create table temSorted as
+    select *, count(*) as count
+    from selected 
+    group by filename
+;
+
+create table to_be_del as
+    select distinct filename 
+    from temSorted 
+    where count > 1
+;
+
+create table famdat.b1_multifetals as
+    select * 
+    from famdat.b1_multifetals 
+    union
+    select * 
+    from to_be_del;
+
+select 'Also deleting multifetals at the end:', count(*) from to_be_del;
+
+delete * from temSorted where count > 1;
+
+data famdat.&mat_final_output_table.;
+set temSorted(drop=varcount count);
+run;
+
+*************** Adding labels to variables ****************;
 proc sql;
     alter table famdat.&mat_final_output_table.
     modify filename label="Name of SR file",
-            ga label='Gestational ages from estimated EDD from various sources',
+            ga label='Gestational ages from est EDD from various sources',
             PatientID label='ID of Patientes',
             studydate label='Date of the study/us',
             DOC label='Date of Conception (derived from episode working edd)',
