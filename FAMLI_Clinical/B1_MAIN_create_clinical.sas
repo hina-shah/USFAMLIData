@@ -61,7 +61,7 @@ create table &mat_final_output_table. as
     select coalesce(a.filename, b.filename) as filename,
            coalesce(a.ga, b.ga) as ga,
             coalesce(a.PatientID, b.PatientID) as PatientID,
-            coalesce(a.studydate , b.studydate ) as studydate format mddyy10.,
+            coalesce(a.studydate , b.studydate ) as studydate format mmddyy10.,
             coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
             coalesce(a.episode_working_edd, b.episode_working_edd) as episode_working_edd format mmddyy10.,
             coalesce(a.delivery_date, b.delivery_date) as delivery_date format mmddyy10.,

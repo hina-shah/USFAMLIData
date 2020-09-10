@@ -189,6 +189,33 @@ select 'Number of pregnancies: ', count(*) from (select distinct PatientID, epis
 
 %include "&MainPath./FAMLI_Clinical/B1_MAIN_Create_Clinical.sas";
 
+proc sql;
+create table c1_maternal_info as 
+select b.FamliID, b.StudyID, a.* 
+from 
+	&mat_final_output_table. as a
+	left join
+	&ga_table. as b
+	on
+	a.PatientID = b.PatientID
+	and a.studydate = b.studydate
+	;
+
+data &mat_final_output_table. (drop=filename PatientID);
+set c1_maternal_info;
+run;
+
+proc sql;
+select count(*) from (select distinct FamliID from &mat_final_output_table.);
+select count(*) from (select distinct StudyID from &mat_final_output_table.);
+select count(*) from (select distinct FamliID, episode_working_edd from &mat_final_output_table.);
+
+%ds2csv(
+    data=&mat_final_output_table.,
+    runmode=b,
+    labels=N,
+    csvfile=F:/Users/hinashah/SASFiles/FAMLI_UNC_Clinical.csv   
+);
 
 /*b.filename, a.PatientID, a.StudyID, a.studydate, a.edd as episode_edd, a.edd_source, a.ga as ga_edd*/
 /*from*/
