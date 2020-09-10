@@ -7,9 +7,9 @@ proc sql;
 create table lmps_pndb as 
  select distinct a.*, b.LMP 
  from
-    famdat.&ga_final_table. as a 
+    &ga_final_table. as a 
     left join
-    famdat.&pndb_ga_table. as b
+    &pndb_ga_table. as b
  on 
     a.PatientID = b.PatientID 
     and 
@@ -24,7 +24,7 @@ create table lmps_pndb_epic as
  from
     lmps_pndb as a 
     left join
-    famdat.&epic_ga_table. as b
+    &epic_ga_table. as b
  on
     a.PatientID = b.pat_mrn_id
     and
@@ -48,7 +48,7 @@ create table inconsistency_filenames as
     from 
         lmps_pndb_epic as a
         inner join
-        famdat.epic_inconsistencies as b
+        outlib.epic_inconsistencies as b
     on
         a.PatientID = b.pat_mrn_id and
         a.episode_edd = b.episode_working_edd 
@@ -72,10 +72,10 @@ create table lmps_from_us as
     (
         /* Get patient ID and studydate for the first ultrasound in a pregnancy */
         select PatientID, episode_edd, us_date_1 as studydate, ga_1 as ga
-        from famdat.b1_pregnancies_with_us
+        from outlib.b1_pregnancies_with_us
     ) as a
     inner join 
-    famdat.&sr_ga_table. as b
+    &sr_ga_table. as b
  on  /* Inner join with the GA type where GA type is LMP */
     a.PatientID = b.PatientID
     and
@@ -86,7 +86,7 @@ create table lmps_from_us as
 
 * integrate back into the lmps table along with ga;
 proc sql;
-create table famdat.&ga_final_table. as
+create table &ga_final_table. as
     select distinct a.filename, a.PatientID, a.studydate, a.episode_edd, a.edd_source, a.ga_edd,
             coalesce(a.lmp, b.LMP) as lmp format mmddyy10.
     from

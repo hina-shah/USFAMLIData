@@ -48,7 +48,7 @@ proc transpose data=WORK.SORTTempTableSorted prefix=enddate
 run;
 
 proc sql;
-create table famdat.b1_Epic_pregnancies_arr as
+create table outlib.b1_Epic_pregnancies_arr as
 	select a.*, b.* 
 	from
 		b1_pregnancies_arr_DOC as a 
@@ -62,13 +62,13 @@ create table famdat.b1_Epic_pregnancies_arr as
 proc sql noprint;
 select name into :dropstarts separated by ' '
    from dictionary.columns
-     where libname='FAMDAT' and memname='B1_EPIC_PREGNANCIES_ARR' and name contains "startdate";
+     where libname='OUTLIB' and memname='B1_EPIC_PREGNANCIES_ARR' and name contains "startdate";
 quit;
 
 proc sql noprint;
 select name into :dropends separated by ' '
    from dictionary.columns
-     where libname='FAMDAT' and memname='B1_EPIC_PREGNANCIES_ARR' and name contains "enddate";
+     where libname='OUTLIB' and memname='B1_EPIC_PREGNANCIES_ARR' and name contains "enddate";
 quit;
 
 %macro deleteRecordsOfPrevPregnancies(inputtable=,outputtable=,datevariable=);
@@ -78,7 +78,7 @@ quit;
 	from
 		&inputtable as a 
 		left join 
-		famdat.b1_epic_pregnancies_arr as b
+		outlib.b1_epic_pregnancies_arr as b
 	on
 		a.PatientID = b.PatientID;
 

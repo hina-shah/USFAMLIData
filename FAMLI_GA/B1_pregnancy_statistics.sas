@@ -26,12 +26,12 @@ quit;
 
 title 'Included: Number of studies';
 proc sql;
-select count(*) from famdat.b1_biom;
+select count(*) from outlib.b1_biom;
 quit;
 
 title 'Included: Number of patients';
 proc sql;
-select count(*) from (select distinct PatientID from famdat.b1_biom);
+select count(*) from (select distinct PatientID from outlib.b1_biom);
 quit;
 
 proc sql;
@@ -42,10 +42,10 @@ quit;
 proc sql noprint;
 select name into :docsvar separated by ' '
 from dictionary.columns
-where libname = "FAMDAT" and
+where libname = "OUTLIB" and
 memname = "B1_PREGNANCIES" and name contains 'docs';
 quit;
-proc sort data=FAMDAT.B1_PREGNANCIES out=work.__tmp__;
+proc sort data=OUTLIB.B1_PREGNANCIES out=work.__tmp__;
 	by PatientID;
 run;
 
@@ -92,7 +92,7 @@ create table studies_per_preg as
 select a.*, datepart(b.studydttm) as studydate format mmddyy10., coalesce(b.ga_lmp, b.ga_edd, b.ga_doc, b.ga_unknown, b.ga_extrap) as ga
 from 
 b1_pregnancies as a left join 
-famdat.b1_biom as b on
+outlib.b1_biom as b on
 a.PatientID = b.PatientID and datepart(b.studydttm) > a.DOC - 25 and datepart(b.studydttm) < a.DOC + 280;
 
 create table min_dates as 

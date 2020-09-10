@@ -26,12 +26,12 @@ Outputs: A unified database file for all biometry measurements: B1_MATERNAL_INFO
 proc sql;
 create table lo_studies as
     select filename
-    from famdat.&ga_table. 
+    from &ga_table. 
     where filename 
     not in
     (   
         select filename 
-        from famdat.&mat_info_epic_table.
+        from &mat_info_epic_table.
     )
 ;
 
@@ -39,7 +39,7 @@ create table lo_studies as
 proc sql;
 create table pndb_leftovers as
     select * 
-    from famdat.&mat_info_pndb_table.
+    from &mat_info_pndb_table.
     where filename in 
         (
             select filename 
@@ -49,23 +49,23 @@ create table pndb_leftovers as
 
 *Combine the tables;
 proc sql;
-create table famdat.&mat_final_output_table. as
+create table &mat_final_output_table. as
     select * from pndb_leftovers
         OUTER UNION CORR
-        select * from famdat.&mat_info_epic_table.;
+        select * from &mat_info_epic_table.;
 */
 
 * Coalesce clinical data;
 proc sql;
-create table famdat.&mat_final_output_table. as 
+create table &mat_final_output_table. as 
     select coalesce(a.filename, b.filename) as filename,
            coalesce(a.ga, b.ga) as ga,
             coalesce(a.PatientID, b.PatientID) as PatientID,
-            coalesce(a.studydate , b.studydate ) as studydate,
-            coalesce(a.DOC, b.DOC) as DOC,
-            coalesce(a.episode_working_edd, b.episode_working_edd) as episode_working_edd,
-            coalesce(a.delivery_date, b.delivery_date) as delivery_date,
-            coalesce(a.mom_birth_date, b.mom_birth_date) as mom_birth_date,
+            coalesce(a.studydate , b.studydate ) as studydate format mddyy10.,
+            coalesce(a.DOC, b.DOC) as DOC format mmddyy10.,
+            coalesce(a.episode_working_edd, b.episode_working_edd) as episode_working_edd format mmddyy10.,
+            coalesce(a.delivery_date, b.delivery_date) as delivery_date format mmddyy10.,
+            coalesce(a.mom_birth_date, b.mom_birth_date) as mom_birth_date format mmddyy10.,
             coalesce(a.mom_age_edd, b.mom_age_edd) as mom_age_edd,
             coalesce(a.mom_weight_oz, b.mom_weight_oz) as mom_weight_oz,
             coalesce(a.mom_height_in, b.mom_height_in) as mom_height_in,
@@ -81,9 +81,9 @@ create table famdat.&mat_final_output_table. as
             coalesce(a.gest_diabetes, b.gest_diabetes) as gest_diabetes,
             coalesce(a.fetal_growth_restriction, b.fetal_growth_restriction) as fetal_growth_restriction
     from 
-        famdat.&mat_info_epic_table. as a
+        &mat_info_epic_table. as a
         full join
-        famdat.&mat_info_pndb_table. as b
+        &mat_info_pndb_table. as b
     on
         a.filename = b.filename and
         a.PatientID = b.PatientID and
@@ -91,14 +91,14 @@ create table famdat.&mat_final_output_table. as
 ;
 
 ***************** Adding variables **********************;
-data famdat.&mat_final_output_table.;
+data &mat_final_output_table.;
 retain filename ga PatientID studydate DOC episode_working_edd ga_from_edd delivery_date
     mom_birth_date mom_age_edd mom_weight_oz mom_height_in
     birth_wt_gms birth_ga_days
     hiv tobacco_use tobacco_pak_per_day smoking_quit_days
     chronic_htn preg_induced_htn
     diabetes gest_diabetes fetal_growth_restriction;
-set famdat.&mat_final_output_table.;
+set &mat_final_output_table.;
     ga_from_edd  = &ga_cycle. - (episode_working_edd - studydate);
     if mom_height_in < &min_height. or mom_height_in > &max_height. then mom_height_in = .;
     if mom_weight_oz < &min_weight.*16 or mom_weight_oz > &max_weight.*16 then mom_weight_oz = .;
@@ -108,7 +108,7 @@ run;
 
 * Count missing variables to chose a duplicate row for the same study with more available variables;
 data b1_maternal_info_counts;
-set famdat.&mat_final_output_table.;
+set &mat_final_output_table.;
 varcount = cmiss(of delivery_date--fetal_growth_restriction);
 run;
 
@@ -144,9 +144,9 @@ create table to_be_del as
     where count > 1
 ;
 
-create table famdat.b1_multifetals as
+create table outlib.b1_multifetals as
     select * 
-    from famdat.b1_multifetals 
+    from outlib.b1_multifetals 
     union
     select * 
     from to_be_del;
@@ -155,13 +155,13 @@ select 'Also deleting multifetals at the end:', count(*) from to_be_del;
 
 delete * from temSorted where count > 1;
 
-data famdat.&mat_final_output_table.;
+data &mat_final_output_table.;
 set temSorted(drop=varcount count);
 run;
 
 *************** Adding labels to variables ****************;
 proc sql;
-    alter table famdat.&mat_final_output_table.
+    alter table &mat_final_output_table.
     modify filename label="Name of SR file",
             ga label='Gestational ages from est EDD from various sources',
             PatientID label='ID of Patientes',
@@ -192,12 +192,12 @@ ods pdf file="&ReportsOutputPath.\B1_Clinical_Details.pdf";
 
 title 'Contents of Maternal Clinical information';
 *************** Show contents *******************;
-proc contents data=famdat.&mat_final_output_table. varnum;
+proc contents data=&mat_final_output_table. varnum;
 run;
 
 *********** Statistics on the complete table ****************;
 title 'Statistics on gestational age from Structured reports and R4';
-proc univariate data=famdat.&mat_final_output_table.;
+proc univariate data=&mat_final_output_table.;
 var ga;
 run;
 
@@ -205,18 +205,18 @@ title "Minimum and Maximum Dates";
 proc sql;
     select "studydate" label="Date variable", min(studydate)
         format=YYMMDD10. label="Minimum date" , max(studydate)
-        format=YYMMDD10. label="Maximum date" from famdat.&mat_final_output_table.;
+        format=YYMMDD10. label="Maximum date" from &mat_final_output_table.;
 quit;
 
 title 'Frequencies on various clinical variables';
 %macro runFreqOnFinalTable(title=,varname=);
     title "&title.";
-    proc freq data=famdat.&mat_final_output_table.;
+    proc freq data=&mat_final_output_table.;
     TABLES &varname. / missing;
     run;
 %mend;
 
-data famdat.biomvar_details;
+data outlib.biomvar_details;
 length title $ 100;
 length varname $ 25;
 infile datalines delimiter=',';

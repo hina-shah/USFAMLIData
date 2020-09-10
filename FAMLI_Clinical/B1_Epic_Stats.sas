@@ -1,8 +1,8 @@
 
-libname famdat "F:\Users\hinashah\SASFiles";
+libname famdat "F:\Users\hinashah\SASFiles\B1Data";
 title 'Number of studies with any data from epic';
 proc sql;
-select count(*) from famdat.&mat_info_epic_table.;
+select count(*) from &mat_info_epic_table.;
 
 title 'Number of studies with known tobacco use';
 proc sql;

@@ -4,13 +4,13 @@
 
 %macro mergedatasets(set1=, set2=, outset=);
     %let sortvars = filename PatientID;
-    proc sort data=famdat.&set1 out=work._tmpsort1_;
+    proc sort data=&set1 out=work._tmpsort1_;
         by &sortvars;
     run;
-    proc sort data=famdat.&set2 out=work._tmpsort2_;
+    proc sort data=&set2 out=work._tmpsort2_;
         by &sortvars;
     run;
-    data famdat.&outset;
+    data &outset;
         merge _tmpsort1_ _tmpsort2_;
         by &sortvars;
     run;
@@ -20,8 +20,8 @@
 
 * macro to just set one dataset;
 %macro setdataset(setin=, setout=);
-    data famdat.&setout;
-    set famdat.&setin;
+    data &setout;
+    set &setin;
     run;
 %mend;
 
@@ -32,28 +32,28 @@ proc format;
 run ;
 
 data _null_;
-set famdat.biomvar_details (drop=tagname shortname);
+set outlib.biomvar_details (drop=tagname shortname);
 %global biom_created_table;
 newvar = put(datetime(),myfmt.);
 completename = cats(&outputset, newvar);
 put completename=;
 call symput('biom_created_table', completename );
 if _n_=1 then
-    call execute( catt('%setdataset(setin=', varname, ', setout=', completename, ');'));
+    call execute( catt('%setdataset(setin=outlib.', varname, ', setout=outlib.', completename, ');'));
 else
-    call execute( catt('%mergedatasets(set1=', completename, ', set2=', varname, ', outset=', completename, ');'));
+    call execute( catt('%mergedatasets(set1=outlib.', completename, ', set2=outlib.', varname, ', outset=outlib.', completename, ');'));
 run;
 
 * merge with the gestational age table;
-%mergedatasets(set1=&ga_final_table., set2=&biom_created_table., outset=&biom_final_output_table.);
+%mergedatasets(set1=&ga_final_table., set2=outlib.&biom_created_table., outset=&biom_final_output_table.);
 
-data famdat.&biom_final_output_table.;
-set famdat.&biom_final_output_table.(drop=studydttm episode_edd edd_source);
+data &biom_final_output_table.;
+set &biom_final_output_table.(drop=studydttm episode_edd edd_source);
 run;
 
 proc sql;
 delete *
-    from famdat.&biom_final_output_table.
+    from &biom_final_output_table.
     where
         missing(fl_1) and missing(crl_1) and 
         missing(bp_1) and missing(ac_1) and 

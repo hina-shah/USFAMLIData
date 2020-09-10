@@ -7,7 +7,7 @@ create table all_US_pndb as
     from
         &famli_studies. as a
         left join
-        famdat.&pndb_ga_table. as b
+        &pndb_ga_table. as b
         on
         a.PatientID = b.PatientID and
         a.studydate <= b.BEST_EDC and
@@ -21,7 +21,7 @@ create table all_US_pndb_epic as
     from 
         all_US_pndb as a
         left join
-        famdat.&epic_ga_table. as b
+        &epic_ga_table. as b
         on
         a.PatientID = b.pat_mrn_id and
         a.studydate <= b.episode_working_edd and
@@ -39,7 +39,7 @@ create table all_US_pndb_epic_sr as
     from 
         all_US_pndb_epic as a
         left join
-        famdat.&sr_ga_table._edds as b
+        &sr_ga_table._edds as b
         on
         a.PatientID = b.PatientID and
         a.studydate = b.studydate and
@@ -54,7 +54,7 @@ create table all_US_pndb_epic_sr_r4 as
     from 
         all_US_pndb_epic_sr as a
         left join
-        famdat.&r4_ga_table. as b
+        &r4_ga_table. as b
         on
         a.PatientID = b.PatientID and
         missing(a.episode_edd) and
@@ -97,7 +97,7 @@ create table distinct_gas_extrap as
 
 * If there are multiple edd's assigned then assign the later one;
 proc sql;
-create table famdat.&ga_final_table. as
+create table &ga_final_table. as
     select a.filename, a.PatientID, a.studydate, a.episode_edd, a.edd_source
     from
         distinct_gas_extrap as a
@@ -109,8 +109,8 @@ create table famdat.&ga_final_table. as
         ) as b
         on a.filename = b.filename and a.PatientID = b.PatientID and a.episode_edd = max_episode_edd;
 
-data famdat.&ga_final_table.;
-set famdat.&ga_final_table.;
+data &ga_final_table.;
+set &ga_final_table.;
 if not missing(episode_edd) then do;
     ga_edd = &ga_cycle. - (episode_edd - studydate);
 end;
@@ -121,7 +121,7 @@ proc sql;
 create table alerts as
     select distinct a.*, b.alert
     from
-        famdat.&ga_final_table as a
+        &ga_final_table. as a
         left join
         &famli_table. as b
     on
@@ -130,7 +130,7 @@ create table alerts as
 create table to_be_deleted_sr as
     select distinct filename 
     from 
-        famdat.&ga_final_table. as a
+        &ga_final_table. as a
         inner join
         (
             select PatientID, episode_edd, count(*) as ns_count
@@ -146,13 +146,13 @@ proc sql;
 create table to_be_deleted_epic as 
     select distinct a.filename 
     from 
-        famdat.&ga_final_table. as a 
+        &ga_final_table. as a 
         inner join
         (
             select * from 
             (
                 select distinct pat_mrn_id, episode_id, episode_working_edd, count(*) as count_edd 
-                from famdat.&epic_ga_table.
+                from &epic_ga_table. 
                 group by pat_mrn_id, episode_id
             ) 
             where count_edd > 1
@@ -168,13 +168,13 @@ proc sql;
 create table to_be_deleted_pndb as 
     select distinct a.filename 
     from 
-        famdat.&ga_final_table. as a 
+        &ga_final_table. as a 
         inner join
         (
             select * from 
             (
                 select distinct PatientID, BEST_EDC, count(*) as count_edd 
-                from famdat.&pndb_ga_table.
+                from &pndb_ga_table.
                 group by PatientID, BEST_EDC
             ) 
             where count_edd > 1
@@ -190,7 +190,7 @@ proc sql;
 create table to_be_deleted_ga as
     select distinct filename, ga_edd
     from 
-        famdat.&ga_final_table.
+        &ga_final_table.
     where 
         not missing(ga_edd) and 
         (ga_edd < 42 or ga_edd > 308)
@@ -202,7 +202,7 @@ set to_be_deleted_sr to_be_deleted_epic to_be_deleted_pndb to_be_deleted_ga(drop
 run;
 
 proc sql;
-create table famdat.b1_multifetals as
+create table outlib.b1_multifetals as
 select filename from to_be_deleted_sr 
 UNION 
 select filename from to_be_deleted_epic 
@@ -211,20 +211,20 @@ select filename from to_be_deleted_pndb;
 run;
 
 proc sql;
-select 'Number of multifetals', count(*) from famdat.b1_multifetals;
+select 'Number of multifetals', count(*) from outlib.b1_multifetals;
 
 select 'Number of nonviable ga ultrasounds', count(*) from 
     (select filename 
         from to_be_deleted_ga 
         where filename not in 
-            (select filename from  famdat.b1_multifetals)
+            (select filename from  outlib.b1_multifetals)
    ); 
 
 
 
 * Delete records ;
 proc sql;
-delete * from famdat.&ga_final_table. 
+delete * from &ga_final_table. 
     where filename in (select * from to_be_deleted);
 delete * from &famli_studies. 
     where filename in (select * from to_be_deleted);
@@ -234,7 +234,7 @@ delete * from &famli_table.
 proc sql;
 create table per_study_count as 
     select *, count(*) as count
-    from famdat.&ga_final_table.
+    from &ga_final_table.
     group by filename, PatientID, studydate;
 quit;
 

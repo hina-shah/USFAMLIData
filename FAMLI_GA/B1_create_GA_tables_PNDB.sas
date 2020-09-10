@@ -1,13 +1,8 @@
-*libname famdat 'F:\Users\hinashah\SASFiles';
-*libname epic 'F:\Users\hinashah\SASFiles\epic';
-
-*libname famdat '/folders/myfolders';
-*libname epic '/folders/myfolders/epic';
 
 /********** PNDB **************/
 * Extract gestational age information from the PNDB database;
 proc sql;
-	create table famdat.&pndb_ga_table. as
+	create table &pndb_ga_table. as
 	select Mom_EpicMRN as PatientID,
 			M_PDT0101 as LMP,
 			M_PDT0102 as EDC_LMP,
@@ -15,11 +10,11 @@ proc sql;
 			M_PDT0105 as US_EDC,
 			M_PDT0106 as BEST_EDC,
 			M_PDT0107 as Delivery_date
-	from famdat.&pndb_table.
+	from &pndb_table.
 	where not missing(Mom_EpicMRN);
 
-data famdat.&pndb_ga_table. (drop= gaus galmp eddlmp diffedds);
-set famdat.&pndb_ga_table.;
+data &pndb_ga_table. (drop= gaus galmp eddlmp diffedds);
+set &pndb_ga_table.;
 	if missing(BEST_EDC) then do;
 		if not missing(US_DATE) and not missing(US_EDC) and not missing(LMP) then
 		do;

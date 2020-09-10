@@ -19,45 +19,48 @@ Outputs: b1_ga_table - table with gestational ages,
 *libname famdat "\folders\myfolders";
 *libname epic "\folders\myfolders\epic";
 
-libname famdat  "F:\Users\hinashah\SASFiles";
-libname epic "F:\Users\hinashah\SASFiles\epic";
-libname uslib 'F:\Groups\Restricted_access_data\Ultrasound\';
+%let ServerPath = H:\Users\hinashah\SASFiles;
+
+libname famdat  "&ServerPath.\InputData";
+libname epic "&ServerPath.\InputData\epic720";
+libname uslib "&ServerPath.\InputData\Ultrasound";
+libname outlib "&ServerPath.\B1Data";
 
 **** Path where the sas programs reside in ********;
-%let MainPath= F:\Users\hinashah\SASFiles\USFAMLIData;
-%let ReportsOutputPath = F:\Users\hinashah\SASFiles\Reports;
+%let MainPath= &ServerPath.\USFAMLIData;
+%let ReportsOutputPath = &ServerPath.\Reports;
 
 *************** INPUT Datasets ********************;
-%let maintablename = famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
-%let pndb_table = pndb_famli_records_with_matches;
-%let r4_table = unc_famli_r4data20190820;
+%let maintablename = famdat.famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
+%let pndb_table = famdat.pndb_famli_records_with_matches; /*This has all the data from PNDB*/
+%let r4_table = famdat.unc_famli_r4data20190820;
 
 ************** OVERALL output tables ***************;
-%let famli_table = famdat.famli_b1_subset;
-%let famli_studies = famdat.b1_patmrn_studytm;
+%let famli_table = outlib.famli_b1_subset;
+%let famli_studies = outlib.b1_patmrn_studytm;
 
 * ********************** GA variables *************;
 **** Path where the ga sas programs reside in ********;
 %let GAPath= &MainPath.\FAMLI_GA;
 
 ****** Names of the main tables to be used ********;
-%let epic_ga_table = b1_ga_table_epic;
-%let pndb_ga_table = b1_ga_table_pndb;
-%let r4_ga_table = b1_ga_table_r4;
-%let sr_ga_table = b1_ga_table_sr;
-%let ga_final_table = b1_ga_table;
+%let epic_ga_table = outlib.b1_ga_table_epic;
+%let pndb_ga_table = outlib.b1_ga_table_pndb;
+%let r4_ga_table = outlib.b1_ga_table_r4;
+%let sr_ga_table = outlib.b1_ga_table_sr;
+%let ga_final_table = outlib.b1_ga_table;
 
 * ********************** Clinical variables **********;
 **** Path where the clinical sas programs reside in ********;
 %let ClinicalPath= &MainPath.\FAMLI_Clinical;
 
 ****** Names of the main tables to be used ********;
-%let ga_table = b1_ga_table;
+%let ga_table = outlib.b1_ga_table;
 
 ****** Names of output tables to be generated *****;
-%let mat_info_pndb_table = b1_maternal_info_pndb;
-%let mat_info_epic_table = b1_maternal_info_epic;
-%let mat_final_output_table = b1_maternal_info;
+%let mat_info_pndb_table = outlib.b1_maternal_info_pndb;
+%let mat_info_epic_table = outlib.b1_maternal_info_epic;
+%let mat_final_output_table = outlib.b1_maternal_info;
 
 ******* Define global values *******;
 %let max_ga_cycle = 308;
@@ -70,8 +73,8 @@ libname uslib 'F:\Groups\Restricted_access_data\Ultrasound\';
 * ********************** Biometry variables *********;
 **** Path where the biom sas programs reside in ********;
 %let BiomPath= &MainPath.\FAMLI_Biom;
-%let biom_final_output_table = b1_biom;
-%let biom_subset_measures = b1_biom_subset_measures;
+%let biom_final_output_table = outlib.b1_biom;
+%let biom_subset_measures = outlib.b1_biom_subset_measures;
 
 **** create subset ********;
 %include "&MainPath/B1_dataset_processing.sas";
@@ -90,27 +93,27 @@ proc sql;
 create table full_join as
     select distinct a.*, b.* 
     from 
-        famdat.b1_ga_table as a 
+        outlib.b1_ga_table as a 
         left join
-        famdat.b1_biom as b
+        outlib.b1_biom as b
     on
         a.PatientID = b.PatientID and
         a.studydate = b.studydate and
         a.filename = b.filename;
 
-create table famdat.b1_full_table as
+create table outlib.b1_full_table as
     select distinct a.*, b.* 
     from 
         full_join as a 
         left join
-        famdat.b1_maternal_info as b
+        outlib.b1_maternal_info as b
     on
         a.PatientID = b.PatientID and
         a.studydate = b.studydate and
         a.filename = b.filename;
 
-data famdat.b1_full_table;
-set famdat.b1_full_table(drop= episode_working_edd ga_from_edd);
+data outlib.b1_full_table;
+set outlib.b1_full_table(drop= episode_working_edd ga_from_edd);
 run;
 
 proc delete data = full_join;

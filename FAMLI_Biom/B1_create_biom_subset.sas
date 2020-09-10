@@ -1,8 +1,8 @@
 
 
 %macro processArray(bn=);
-    data famdat.&biom_subset_measures.;
-    set famdat.&biom_subset_measures.;
+    data &biom_subset_measures.;
+    set &biom_subset_measures.;
         array biomarr &bn.:;
         
         &bn.first_1 = biomarr{1};
@@ -29,22 +29,22 @@
     run;
 %mend;
 
-data famdat.&biom_subset_measures.;
-set famdat.&biom_final_output_table.;
+data &biom_subset_measures.;
+set &biom_final_output_table.;
 run;
 
 data _null_;
-set famdat.biomvar_details;
+set outlib.biomvar_details;
 call execute( catt('%processArray(bn=', shortname, ');'));
 run;
 
 /*Create a dataset that keeps first and last two measurements along with their means*/
-data famdat.&biom_subset_measures. (keep = filename PatientID studydate ga_edd lmp 
+data &biom_subset_measures. (keep = filename PatientID studydate ga_edd lmp 
                                            fl_first: fl_last: bp_first: bp_last: 
                                            hc_first: hc_last: ac_first: ac_last:
                                            crl_first: crl_last: tcd_first: tcd_last:
                                            afiq1_first: afiq1_last: afiq2_first: afiq2_last:
                                            afiq3_first: afiq3_last: afiq4_first: afiq4_last:
                                            mvp_first: mvp_last:);
-set famdat.&biom_subset_measures.;
+set &biom_subset_measures.;
 run;

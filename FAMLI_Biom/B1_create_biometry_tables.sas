@@ -66,7 +66,7 @@
     run;
 
     * Convert data to numerical values, and convert mms to cms;
-    data famdat.&biomvname;
+    data outlib.&biomvname;
     set work.&biomvname;
     run;
 
@@ -76,7 +76,7 @@
 %mend;
 
 
-data famdat.biomvar_details;
+data outlib.biomvar_details;
 length tagname $ 27;
 length varname $ 20;
 length shortname $ 6;

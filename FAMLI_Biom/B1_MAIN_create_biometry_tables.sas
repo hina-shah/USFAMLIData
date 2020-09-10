@@ -32,7 +32,7 @@ Outputs: A unified database file for all biometry measurements: B1_BIOM
 
 *************** Adding labels to the data *******************;
 proc sql;
-    alter table famdat.&biom_final_output_table.
+    alter table &biom_final_output_table.
     modify filename label="Name of SR file",
             PatientID label='ID of Patientes', 
             studydate label='Date of the study/us',
@@ -50,10 +50,10 @@ proc sql;
             ;
 quit;
 
-data famdat.&biom_final_output_table.;
+data &biom_final_output_table.;
 retain filename PatientID studydate
     fl_: ac_: bp_: hc_: tcd_: crl_: afiq1_: afiq2_: afiq3_: afiq4_: mvp_;
-set famdat.&biom_final_output_table.;
+set &biom_final_output_table.;
 run;
 
 ***************** Create a subset table with only first/last biometry values and their means *************;
@@ -64,7 +64,7 @@ ods pdf file= "&ReportsOutputPath.\B1_Biom_Details.pdf";
 
 title 'Contents for the biometry table';
 
-proc contents data=famdat.&biom_final_output_table. varnum;
+proc contents data=&biom_final_output_table. varnum;
 run;
 
 ods pdf close;

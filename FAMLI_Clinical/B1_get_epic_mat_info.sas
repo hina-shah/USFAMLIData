@@ -5,7 +5,7 @@ create table epic_maternal_info as
             a.ga_edd as ga, b.episode_working_edd, 
             b.birth_date as mom_birth_date format mmddyy10.
     from
-        famdat.&ga_table. as a
+        &ga_table. as a
         inner join 
         epic.ob_dating as b
     on
@@ -56,7 +56,7 @@ run;
 
 /****************** Create final table ******************/
 proc sql;
-create table famdat.&mat_info_epic_table. as
+create table &mat_info_epic_table. as
     select * 
     from epic_maternal_info 
     where 

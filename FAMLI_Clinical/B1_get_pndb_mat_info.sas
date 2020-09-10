@@ -2,12 +2,6 @@
 *IMPORTANT: To import data correctly please make sure that the NULL strings are replaced
 with empty cells in the original excel file;
 
-*libname famdat '/folders/myfolders/';
-/*libname famdat "F:\Users\hinashah\SASFiles";
-%let b1_biom_table = b1_biom;
-%let pndb_table = pndb_famli_records;
-*/
-
 *preprocess the pndb dataset;
 data pndb_preprocess (keep= HospNum Mom_EpicMRN MRN
 							A_APP0701 A_APP0702 A_APP0703 A_APP0704 A_APP0705 A_APP0706 A_CLD0401 A_CLD0402 A_CLD0403
@@ -17,7 +11,7 @@ data pndb_preprocess (keep= HospNum Mom_EpicMRN MRN
 							L_APP0108 S_INF0112 D_Mom_DOB
 							PregIndHTN PrevDiab GestDiab CalcEdd EddsEqual MomAgeEDD GABirth diff bestedd
 							);
-set famdat.&pndb_table (keep= HospNum Mom_EpicMRN
+set &pndb_table (keep= HospNum Mom_EpicMRN
 							A_APP0701 A_APP0702 A_APP0703 A_APP0704 A_APP0705 A_APP0706 A_CLD0401 A_CLD0402 A_CLD0403
 							B_APP0803 B_APP0804 B_APP0809 B_APP0811 B_APP0801 B_APP0802 B_APP0810
 							G_APP0510 F_PMH1515
@@ -79,7 +73,7 @@ run;
 proc sql;
 create table common_mrns as
 	select distinct PatientID 
-	from famdat.&ga_table. 
+	from &ga_table. 
 	where PatientID in
 	(
 		select MRN 
@@ -93,7 +87,7 @@ create table common_mrns as
 create table studies_and_deliveries as
 	select a.filename, a.PatientID, a.studydate, a.ga_edd as ga, b.* 
 	from
-		famdat.&ga_table. as a
+		&ga_table. as a
 		inner join
 		(
 			select MRN,
@@ -137,7 +131,7 @@ create table studies_and_deliveries as
 ;
 
 * Select by pregnancy dates;
-create table famdat.&mat_info_pndb_table.(drop=MRN) as
+create table &mat_info_pndb_table.(drop=MRN) as
 	select * 
 	from studies_and_deliveries
 	where 

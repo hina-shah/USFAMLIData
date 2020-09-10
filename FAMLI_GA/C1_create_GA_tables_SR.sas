@@ -2,19 +2,19 @@
 /* Create raw gestational age values from structured reports */
 %macro createGaTable(gatag=, gvarname=);
 	proc sql noprint;
-		create table work.&gvarname (drop=tagname) as 
-		select filename, PatientID, studydttm, tagname, tagcontent as ga
+		create table outlib.&gvarname (drop=tagname) as 
+		select filename, PID as PatientID, StudyID, 
+				tagname, numericvalue as &gvarname.
 			from &famli_table
 			where(tagname = "&gatag");
 	quit;
 
-	data outlib.&gvarname (drop=ga);
-	set work.&gvarname;
-	ga = compress(ga, '','A');
-	&gvarname = input(ga, 4.);
-	run;
+/*	data c1out.&gvarname (drop=ga);*/
+/*	set work.&gvarname;*/
+/*	ga = compress(ga, '','A');*/
+/*	&gvarname = input(ga, 4.);*/
+/*	run;*/
 
-	proc delete data=work.&gvarname;
 	run;
 %mend createGaTable;
 
@@ -28,6 +28,7 @@ datalines;
 Gestational Age by EDD,ga_edd
 Gestational Age by Conception Date,ga_doc
 Gestational Age by LMP,ga_lmp
+GAByLMP, ga_lmp_fam
 ;
 run;
 
@@ -37,23 +38,31 @@ create table all_together as
 select * from
 outlib.ga_edd OUTER UNION CORR
     (select * from outlib.ga_doc OUTER UNION CORR
-        select * from outlib.ga_lmp);
+        select * from outlib.ga_lmp OUTER UNION CORR
+			select * from outlib.ga_lmp_fam);
 
 proc sql;
 create table &sr_ga_table. as
-	select a.filename, a.PatientID, a.studydate, 
-		coalesce(b.ga_edd, b.ga_doc, b.ga_lmp) as ga_raw,
+	select distinct a.PID as PatientID, a.StudyID, a.studydate,
+		coalesce(b.ga_edd, b.ga_doc, b.ga_lmp, b.ga_lmp_fam) as ga_raw,
 		case 
 			when not missing(b.ga_edd) then 'Gestational Age by EDD'
 			when not missing(b.ga_doc) then 'Gestational Age by DOC'
 			when not missing(b.ga_lmp) then 'Gestational Age by LMP'
+			when not missing(b.ga_lmp_fam) then 'Gestational Age by LMP FAM'
 		end as ga_type
 	from
-		&famli_studies. as a 
+		&c1_studies. as a 
 		inner join
 		all_together as b
 	on
-	a.filename = b.filename;
+		a.StudyID = b.StudyID;
+
+title "Counts of raw GAs extracted from SRs";
+proc sql;
+select '# of total studies: ', count(*) from &c1_studies.;
+select '# of observations with raw GA from SR: ', count(*) from &sr_ga_table.;
+select '# of studies (might include multiples) from SR: ', count(*) from (select distinct StudyID from &sr_ga_table.);
 
 proc delete data=work.all_together;
 	run;
@@ -66,7 +75,9 @@ create table _tmp_sorted_sr_gas as
 	select distinct * from &sr_ga_table. 
 	order by PatientID, studydate;
 
-* Get individual ultrasound dates and their corresponding gestational agesf;
+* Get a list of GAs and Ultrasound dates per patient ,
+	this will be created in two tables and then combined into one;
+
 proc transpose data=_tmp_sorted_sr_gas prefix=us_date_ 
 		out=work.tempusdates(drop=_name_);
 	var studydate;
@@ -104,6 +115,8 @@ proc delete data=work._tmp_sorted_sr_gas work.tempusdates work.tempusga;
 	run;
 
 * Estimate EDDs;
+
+	*Extract max number of dates we have;
 data _null_;
 set sr_us_gas(obs=1);
     array usd us_date_:;
@@ -143,7 +156,7 @@ set sr_us_gas;
 	end;
 run;
 
-* Output the table ;
+* Output the table with each study per row;
 data &sr_ga_table._edds (keep=PatientID studydate ga edd edd_source) ;
 set sr_us_gas_edds;
 	array usd us_date_:;
@@ -162,5 +175,36 @@ set sr_us_gas_edds;
 	end;
 run;
 
-proc delete data=work.sr_us_gas work.sr_us_gas_edds;
+proc sql;
+select '# observations with EDDs: ', count(*) from &sr_ga_table._edds;
+
+proc sql;
+create table &sr_ga_table. as
+select distinct a.*, b.ga, b.edd, b.edd_source
+from
+	&sr_ga_table. as a
+	left join
+	&sr_ga_table._edds as b
+on
+	a.PatientID = b.PatientID and a.studydate = b.studydate;
+
+/* Remove duplicates */
+proc sql;
+select '# of observations in ga table: ', count(*) from &sr_ga_table.;
+select '# of studies in ga table: ', count(*) from (select distinct StudyID from &sr_ga_table.);
+
+create table counts as 
+select *, count(*) as count from &sr_ga_table. group by StudyID;
+
+delete * from &sr_ga_table. where StudyID in (select StudyID from counts where count > 1);
+
+select '# of observations in ga table: ', count(*) from &sr_ga_table.;
+select '# of studies in ga table: ', count(*) from (select distinct StudyID from &sr_ga_table.);
+
+delete * from &c1_studies. where StudyID in (select StudyID from counts where count > 1);
+
+
+
+proc delete data=work.sr_us_gas work.sr_us_gas_edds work.counts;
 	run;
+

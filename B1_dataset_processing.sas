@@ -14,7 +14,7 @@ The 'alert' field will have either of the following notes:
 proc sql noprint; 
 create table &famli_table. as
     select *
-    from famdat.&maintablename 
+    from &maintablename.
     where 
     (
         missing(alert) or 
@@ -34,30 +34,30 @@ create table &famli_studies. as
 
 * Extract studydates from the metadata tags;
 proc sql;
-create table famdat.us_sr_studydates as
-select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+create table outlib.us_sr_studydates as
+select file, PatientID, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
 from uslib.famli_b1_instancetable
-where sr='True'
+where sr=1
 UNION
-select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+select file, PatientID, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
 from uslib.famli_b1b_instancetable
-where sr='True'
+where sr=1
 UNION
-select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+select file, PatientID, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
 from uslib.famli_b2_instancetable
-where sr='True'
+where sr=1
 UNION
-select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+select file, PatientID, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
 from uslib.famli_b3prelim_instancetable
-where sr='True'
+where sr=1
 UNION
-select file, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
+select file, PatientID, datepart(study_dttm) as studydate format mmddyy10. , study_dttm
 from uslib.famli_c1_instancetable
-where sr='True'
+where sr=1
 ;
 
-data famdat.us_sr_studydates (drop=dcm_found);
-set famdat.us_sr_studydates;
+data outlib.us_sr_studydates (drop=dcm_found);
+set outlib.us_sr_studydates;
 dcm_found = index(lowcase(file), '.dcm');
 
 if dcm_found > 1 then file_sub = substr(file, 1, dcm_found-1);
@@ -70,7 +70,7 @@ select distinct a.filename, a.PatientID, b.studydate, b.study_dttm
 from
 	&famli_studies. as a
 	left join
-	famdat.us_sr_studydates as b
+	outlib.us_sr_studydates as b
 on
 	a.filename = b.file_sub
 ;
@@ -90,28 +90,32 @@ create table dups_pre as
 select * from b1_patid_studydate_sorted
 where num_studies_day>1;
 
-data famdat.b1_deleted_records(keep= filename);
+data outlib.b1_deleted_records(keep= filename);
 set dups_pre;
 by descending study_dttm filename;
 if not (first.study_dttm and first.filename) then output;
 run;
 
-data &famli_studies. (drop=num_studies_day study_dttm);
+data &famli_studies._all (drop=num_studies_day study_dttm);
 set b1_patid_studydate_sorted;
+run;
+
+data &famli_studies.;
+set &famli_studies._all;
 run;
 
 proc sql;
 delete * from &famli_studies. 
     where filename in 
         (
-            select filename from famdat.b1_deleted_records
+            select filename from outlib.b1_deleted_records
         )
 ;
 
 delete * from &famli_table.
     where filename in 
     (
-        select filename from famdat.b1_deleted_records
+        select filename from outlib.b1_deleted_records
     )
 ;
 
