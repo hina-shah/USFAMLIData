@@ -3,14 +3,24 @@ dm "log; clear; out; clear; results; clear;";
 
 * Script to generate data as input to the SuperLearner macro. This gnerates two sets of data;
 
-%let target_location = P:\Users\hinashah\SASFiles\SLData_New;
+%let target_location = P:\Users\hinashah\SASFiles\SLData_Del923Anonym;
 
-libname famdat  "P:\Users\hinashah\SASFiles";
+libname famdat  "P:\Users\hinashah\SASFiles\B1Data916";
 libname sldat "&target_location.";
 
-%let inputtable = famdat.b1_full_table;
+%let inputtable = famdat.b1_studies_with_del;
+/* %let inputtable = famdat.b1_full_table; */
 
 ods pdf file="&target_location.\CreateTablesOutput.pdf" startpage=no;
+
+proc sql;
+create table inputtable_u as
+select * from 
+(
+select *, count(*) as study_count 
+from &inputtable.
+group by PatientID, studydate
+) where study_count=1;
 
 title;
 proc sql;
@@ -19,7 +29,8 @@ create table sldat.SL_Table1_All as
                     fl_1, fl_2, bp_1, bp_2, hc_1, hc_2, ac_1, ac_2,
                     mom_age_edd, mom_weight_oz, mom_height_in, hiv, tobacco_use,
                     chronic_htn, preg_induced_htn, diabetes, gest_diabetes
-    from &inputtable.
+/*     from &inputtable. */
+    from inputtable_u
 ;
 
 select "Number of Ultrasounds initially:", count(*) from sldat.SL_Table1_All;
@@ -95,6 +106,11 @@ set sldat.SL_Table1_All;
     senichd = diffnichd**2;
     
     ga_edd_weeks = ga_edd/7.;
+    
+    fl_mean = fl_mean/10.0;
+    hc_mean = hc_mean/10.0;
+    ac_mean = ac_mean/10.0;
+    bp_mean = bp_mean/100.0;
 run;
 
 *Create categorical variables for binary variables;
@@ -308,13 +324,6 @@ proc univariate data=sldat.SL_FinalRandSelectTable1&out_suffix. noprint;
     histogram ga_edd_weeks / endpoints= 13 to 43 by 1;
 run;
 
-%ds2csv(
-    data=sldat.SL_FinalRandSelectTable1&out_suffix.,
-    runmode=b,
-    labels=N,
-    csvfile=&target_location./SL_FinalRandSelectTable1&out_suffix..csv   
-);
-
 title "Frequencies for Categorical Variables";
 
 proc freq data=sldat.SL_FinalRandSelectTable1&out_suffix.;
@@ -371,5 +380,40 @@ proc surveyselect data=sldat.SL_FinalRandSelectTable1
 proc surveyselect data=sldat.SL_FinalRandSelectTable1
       method=srs n=10000 out=sldat.SL_FinalRandSelectTable1_sub10K noprint;
    run;
+
+
+%macro deidentify(indata=, outdata=);
+
+    data sldat.&outdata. (keep= ga_edd ga_edd_weeks trimester
+                           fl_1 bp_1 hc_1 ac_1 
+                           mom_age_edd mom_weight_lb mom_height_in
+                           hiv current_smoker former_smoker smoker_status
+                           chronic_htn preg_induced_htn
+                           diabetes gest_diabetes
+                           hadlock_ga intergrowth_ga nichd_ga
+                           absdiffhadlock absdiffintergrowth absdiffnichd
+                           diffhadlock diffintergrowth diffnichd
+                           sehadlock seintergrowth senichd);
+    set &indata.;
+    run;
+    
+    %ds2csv(
+    data= sldat.&outdata.,
+    runmode=b,
+    labels=N,
+    csvfile=&target_location./&outdata..csv   
+    );
+    
+%mend deidentify;
+
+%deidentify(indata=sldat.SL_FinalRandSelectTable1, outdata=sldata_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_cat, outdata=sldata_cat_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_cat2tr, outdata=sldata_cat2tr_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_cat3tr, outdata=sldata_cat3tr_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_2Trim, outdata=sldata_2tr_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_3Trim, outdata=sldata_3tr_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_C5k, outdata=sldata_cat5k_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_sub5K, outdata=sldata_5k_an);
+%deidentify(indata=sldat.SL_FinalRandSelectTable1_sub10K, outdata=sldata_10k_an);
 
 ods pdf close;

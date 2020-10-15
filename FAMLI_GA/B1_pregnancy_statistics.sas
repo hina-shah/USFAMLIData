@@ -1,3 +1,15 @@
+title 'Stats on B1 with SR';
+proc sql;
+create table dicom_sr_studies as
+select distinct filename, PatientID, lastsrofstudy, anybiometry, alert from famdat.famli_b1_dicom_sr;
+
+proc sql;
+select 'All distinct', count(*) from dicom_sr_studies;
+select 'Number of patients', count(*) from (select distinct PatientID from dicom_sr_studies);
+
+select 'Not last studies:', count(*) from (select distinct filename from dicom_sr_studies where lastsrofstudy=0);
+select 'Non fetal ultrasounds', count(*) from (select distinct filename from dicom_sr_studies where lastsrofstudy=1 and alert contains 'non-fetal ultrasound');
+select 'Non-biometry ultrasounds', count(*) from (select distinct filename from dicom_sr_studies where lastsrofstudy=1 and anybiometry ne 1);
 
 title 'Number of Patients in B1 with SR';
 proc sql;
@@ -13,6 +25,10 @@ title 'Excluded: Number of Studies with no biometry measurements';
 proc sql;
 select count(*) from (select distinct filename from famdat.famli_b1_dicom_sr where anybiometry ne 1);
 quit;
+
+title 'Excluded: Number of studies that are duplicates';
+proc sql;
+select count(*) from (select distinct filename from famdat.famli_b1_dicom_sr where lastsrofstudy=0);
 
 title 'Excluded: Number of Studies with non-fetal ultrasounds';
 proc sql;

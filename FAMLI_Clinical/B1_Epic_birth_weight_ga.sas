@@ -4,6 +4,13 @@
 
 /******************* BIRTH WEIGHT AND GA AT BIRTH ******************/
 proc sql;
+select 'Number of deliveries in EPIC', count(*) from epic.delivery;
+select 'Number of deliveries in EPIC where ga at birth is missing', count(*) from epic.delivery where missing(ga_days);
+create table ts as select *, count(*) as num_f from epic.delivery group by pat_mrn_id, datepart(delivery_dttm_utc);
+select 'Number of multifetal deliveries in EPIC:', count(*) from ts where num_f > 1;
+
+
+proc sql;
 *gather birth weight and ga days -> assumes that the study patients also delivered here.;
 create table epic_maternal_info as
     select distinct a.*, 
@@ -16,7 +23,13 @@ create table epic_maternal_info as
         epic.delivery as b 
     on
         (a.PatientID = b.pat_mrn_id) and 
-        (b.estimate_delivery_date = a.episode_working_edd)and
-        not missing(b.birth_wt_ounces) and
+		a.studydate <= datepart(b.delivery_dttm_utc) and
+		a.studydate >= datepart(b.delivery_dttm_utc) - b.ga_days and
+		not missing(b.ga_days) and
         not missing(b.delivery_dttm_utc);
 quit;
+
+proc sql;
+select count(*) from epic_maternal_info where missing(birth_wt_gms);
+select count(*) from epic_maternal_info where missing(birth_ga_days);
+select count(*) from epic_maternal_info where missing(delivery_date);

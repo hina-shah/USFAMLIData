@@ -185,6 +185,23 @@ create table to_be_deleted_pndb as
             and a.filename not in (select * from to_be_deleted_sr);
 ;
 
+* R4 multifetals ;
+create table to_be_deleted_r4 as
+	select distinct a.filename
+	from
+		&ga_final_table. as a 
+		inner join
+		(
+			select distinct PatientID, NameOFFile
+			from &r4_ga_table.
+			where NumberOfFetuses NE '1'
+		) as b
+		on
+			a.PatientID = b.PatientID and
+			a.filename not in (select * from to_be_deleted_sr) and
+			a.filename = b.NameOfFile
+;
+
 * Find ultrasounds with non-viable gas;
 proc sql;
 create table to_be_deleted_ga as
@@ -198,7 +215,7 @@ create table to_be_deleted_ga as
 
 
 data to_be_deleted;
-set to_be_deleted_sr to_be_deleted_epic to_be_deleted_pndb to_be_deleted_ga(drop=ga_edd);
+set to_be_deleted_sr to_be_deleted_epic to_be_deleted_pndb to_be_deleted_r4 to_be_deleted_ga(drop=ga_edd);
 run;
 
 proc sql;
@@ -207,7 +224,9 @@ select filename from to_be_deleted_sr
 UNION 
 select filename from to_be_deleted_epic 
 UNION 
-select filename from to_be_deleted_pndb;
+select filename from to_be_deleted_pndb
+UNION
+select filename from to_be_deleted_r4;
 run;
 
 proc sql;

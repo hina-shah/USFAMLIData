@@ -210,6 +210,10 @@ select count(*) from (select distinct FamliID from &mat_final_output_table.);
 select count(*) from (select distinct StudyID from &mat_final_output_table.);
 select count(*) from (select distinct FamliID, episode_working_edd from &mat_final_output_table.);
 
+data &mat_final_output_table. (drop=ga_from_edd studydate doc delivery_date mom_birth_date episode_working_edd);
+set &mat_final_output_table.;
+run;
+
 %ds2csv(
     data=&mat_final_output_table.,
     runmode=b,

@@ -25,15 +25,19 @@ PregIndHTN = A_APP0702 | A_APP0703 | A_APP0704 | A_APP0705 | A_APP0706 | A_CLD04
 PrevDiab =  B_APP0803 | B_APP0804 | B_APP0809 | B_APP0811;
 GestDiab = B_APP0801 | B_APP0802 | B_APP0810;
 
+if not missing(M_PDT0101) then
+do;
+	lmp = M_PDT0101;
+	eddlmp = lmp + &ga_cycle.;
+	CalcEdd = eddlmp;
+end;
+
 if not missing(M_PDT0103) and not missing(M_PDT0105) and not missing(M_PDT0101) then
 do;
 	usdate = M_PDT0103;
 	usedd = M_PDT0105;
-	lmp = M_PDT0101;
 	gaus = &ga_cycle. - (usedd - usdate);
 	galmp = usdate - lmp;
-	eddlmp = lmp + &ga_cycle.;
-	CalcEdd = eddlmp;
 	diffedds = abs(eddlmp - usedd);
 	if (galmp < 62 and diffedds > 5) |
 	(galmp < 111 and diffedds > 7) |
@@ -71,28 +75,18 @@ run;
 
 * Find common pids in both the tables;
 proc sql;
-create table common_mrns as
-	select distinct PatientID 
-	from &ga_table. 
-	where PatientID in
-	(
-		select MRN 
-		from pndb_preprocess 
-		where not missing(Mom_EpicMRN) 
-	)
-;
-
-
 * Find similar entries from the pndb database using mrns;
-create table studies_and_deliveries as
-	select a.filename, a.PatientID, a.studydate, a.ga_edd as ga, b.* 
+create table  &mat_info_pndb_table. (drop=MRN) as
+	select a.filename, a.PatientID, a.studydate, a.ga_edd as ga, 
+	coalesce(a.episode_edd, b.bestedd) as episode_working_edd format mmddyy10.,
+	b.* 
 	from
 		&ga_table. as a
 		inner join
 		(
 			select MRN,
 			bestedd - &ga_cycle. as DOC format mmddyy10.,
-			bestedd as episode_working_edd format mmddyy10.,
+			bestedd format mmddyy10.,
 			D_Mom_DOB as mom_birth_date format mmddyy10.,
 			MomAgeEDD as mom_age_edd format 3.2,
 			M_PDT0107 as delivery_date format mmddyy10.,
@@ -123,18 +117,7 @@ create table studies_and_deliveries as
 		) as b
 		on 
 			a.PatientID = b.mrn and
-			a.episode_edd = b.episode_working_edd and 
-			a.PatientID in 
-			(
-				select * from common_mrns
-			)
-;
-
-* Select by pregnancy dates;
-create table &mat_info_pndb_table.(drop=MRN) as
-	select * 
-	from studies_and_deliveries
-	where 
-		delivery_date > studydate and
-		delivery_date < studydate + (&max_ga_cycle.-ga)
+			b.delivery_date > a.studydate and
+			b.delivery_date < a.studydate + (&max_ga_cycle.- a.ga_edd) and
+			not missing(a.PatientID) and not missing(b.mrn)
 ;

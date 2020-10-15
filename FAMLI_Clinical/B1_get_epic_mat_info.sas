@@ -2,17 +2,25 @@
 proc sql;
 create table epic_maternal_info as 
     select distinct a.filename, a.PatientID, a.studydate,
-            a.ga_edd as ga, b.episode_working_edd, 
+            a.ga_edd as ga, a.episode_edd as episode_working_edd,
             b.birth_date as mom_birth_date format mmddyy10.
     from
         &ga_table. as a
         inner join 
-        epic.ob_dating as b
+        epic.ob_history as b
     on
-        (a.PatientID = b.pat_mrn_id) and
-        (a.episode_edd = b.episode_working_edd)
+        (a.PatientID = b.pat_mrn_id) 
+		and not missing(a.episode_edd)
+/*		and*/
+/*        (a.episode_edd > b.episode_working_edd - 21) and*/
+/*		(a.episode_edd < b.episode_working_edd + 21)*/
 ;
-quit;   
+quit;
+
+proc sql;
+select 'Number studies with matched patients from EPIC: ', count(*) from epic_maternal_info;
+select 'Number of patients here: ', count(*) from (select distinct PatientID from epic_maternal_info);
+select 'Number of studies with missing birth dates: ', count(*) from epic_maternal_info where missing(mom_birth_date);
 
 data epic_maternal_info;
 set epic_maternal_info;

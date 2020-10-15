@@ -99,3 +99,23 @@ Max Vertical Pocket,max_vp,mvp_,(MVP)|(Pelvis and Uterus: Biometry Group)
 ;
 run;
 
+proc sql;
+	create table outlib.biom_r4_table as
+	select distinct medicalrecordnumber, put(input(medicalrecordnumber,12.),z12.)  as PatientID,
+			EDD, NameofFile, egadays, ExamDate, studydate, NumberOfFetuses, 
+			First_Trimester_CRL, 
+			Second_Trimester_CRL,
+			Second_Trimester_BPD,
+			Second_Trimester_HC,
+			Second_Trimester_AC,
+			Second_Trimester_FL
+	from &r4_table.
+	where not missing(medicalrecordnumber)
+;
+
+data outlib.biom_r4_table;
+set outlib.biom_r4_table;
+varcount=cmiss(of First_Trimester_CRL--Second_Trimester_FL); /* This is primarily to ignore studies without biometry information*/
+if varcount < 6 then output;
+run;
+

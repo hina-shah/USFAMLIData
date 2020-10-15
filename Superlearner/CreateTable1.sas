@@ -1,5 +1,5 @@
 
-libname famdat  "P:\Users\hinashah\SASFiles";
+libname famdat  "P:\Users\hinashah\SASFiles\B1Data";
 libname sldat "P:\Users\hinashah\SASFiles\SLData_ExtraLearners";
 
 %let inputtable = famdat.b1_full_table;

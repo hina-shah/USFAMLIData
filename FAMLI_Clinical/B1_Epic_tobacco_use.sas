@@ -5,19 +5,37 @@
 */
 
 /******************* TOBACCO USE **************************/
+
+proc sql;
+create table patstudies as
+select distinct PatientID, studydate, episode_working_edd
+from epic_maternal_info;
+
 proc sql;
 *Get the tobacco use entries from the social_hx dataset;
 create table tobacco_use as
-	select distinct a.*, b.smoking_tob_use_c, b.tobacco_pak_per_dy, b.smoking_quit_date, b.contact_date
+	select distinct a.*, 
+			case b.smoking_tob_use_c
+                when 'CURRENT EVERY DAY SMOKER' then 'CURRENT SMOKER'
+                when 'CURRENT SOME DAY SMOKER' then 'CURRENT SMOKER'
+				when 'FORMER SMOKER' then 'FORMER SMOKER'
+				when 'HEAVY TOBACCO SMOKER' then 'CURRENT SMOKER'
+				when 'LIGHT TOBACCO SMOKER' then 'CURRENT SMOKER'
+				when 'NEVER SMOKER' then 'NEVER SMOKER'
+				when 'PASSIVE SMOKE EXPOSURE - NEVER SMOKER' then 'NEVER SMOKER'
+				when 'NEVER ASSESSED' then ''
+				when 'SMOKER, CURRENT STATUS UNKNOWN' then ''
+				when 'UNKNOWN IF EVER SMOKED' then ''
+                else ''
+                end as smoking_tob_use_c,
+			b.tobacco_pak_per_dy, b.smoking_quit_date, b.contact_date
 	from
-		epic_maternal_info as a 
+		patstudies as a 
 		left join 
 		epic.social_hx as b
 	on
-		a.PatientID = b.pat_mrn_id and 
-		b.contact_date <= a.studydate
-	where 
-		b.smoking_tob_use_c in ('CURRENT EVERY DAY SMOKER', 'NEVER SMOKER', 'FORMER SMOKER')
+		a.PatientID = b.pat_mrn_id
+		and b.contact_date <= a.episode_working_edd
 ;
 
 *Extract the most recent one before ultrasound;
@@ -29,10 +47,11 @@ create table tobacco_use_max as
 		(
 			SELECT PatientID, studydate, MAX(contact_date) as max_date
 			from tobacco_use
+			where not missing(smoking_tob_use_c)
 			GROUP BY PatientID, studydate
 		) as b
 	on 
-		a.PatientID=b.PatientID and 
+		a.PatientID = b.PatientID and
 		a.studydate = b.studydate and 
 		b.max_date = a.contact_date
 ;
@@ -42,6 +61,7 @@ set tobacco_use_max;
 row = _n_;
 run;
 
+* Even with the same date use the latest intry in the table. ;
 proc sql;
 create table tobacco_use_max as
 	select distinct a.*
@@ -55,7 +75,7 @@ create table tobacco_use_max as
 			) as b
 		on 
 			a.PatientID = b.PatientID and 
-			a.studydate=b.studydate and
+			a.studydate = b.studydate and
 			a.row = b.max_line
 ;
 
@@ -69,9 +89,16 @@ create table tobacco_use_social_hx as
 		tobacco_use_max as b
 	on
 		a.PatientID = b.PatientID and 
-		a.studydate = b.studydate and 
-		a.filename = b.filename
+		a.studydate = b.studydate
 ;
+
+proc freq data = tobacco_use_social_hx;
+tables smoking_tob_use_c/missing;
+run;
+
+proc sql;
+select count(*) from (select distinct PatientID from tobacco_use_social_hx where missing(smoking_tob_use_c));
+
 
 proc sql;
 *For rest of the patients extract diagnoses from the diagnosis dataset, and count the number of times the diagnoses
@@ -101,8 +128,16 @@ create table occurence_counts as
 	group by PatientID, studydate
 ;
 
+
+
+data occurence_counts;
+set occurence_counts;
+if icd_count >1 then output;
+run;
+
 *Count the number of times the ICD9 codes were entered before an us and extract rows with count > 2;
 *Coalesce/merge based on the findings;
+proc sql;
 create table epic_maternal_info as
 	select distinct  a.filename, 
 		a.PatientID, 
@@ -124,6 +159,13 @@ create table epic_maternal_info as
 	on
 		a.PatientID = b.PatientID and 
 		a.studydate = b.studydate and 
-		a.filename = b.filename and
-		b.icd_count > 1
+		a.filename = b.filename 
 ;
+
+title 'Frequencie on tobacco use diagnoses';
+proc freq data = epic_maternal_info;
+tables tobacco_use/missing;
+run;
+title;
+proc sql;
+select 'Number of patients with missing tobacco use info:', count(*) from (select distinct PatientID from epic_maternal_info where missing(tobacco_use));

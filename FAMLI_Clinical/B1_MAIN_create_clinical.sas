@@ -71,15 +71,21 @@ create table &mat_final_output_table. as
             coalesce(a.mom_height_in, b.mom_height_in) as mom_height_in,
             coalesce(a.birth_wt_gms, b.birth_wt_gms) as birth_wt_gms,
             coalesce(a.birth_ga_days, b.birth_ga_days) as birth_ga_days,
-            coalesce(a.hiv, b.hiv) as hiv,
+			sum(a.hiv, b.hiv) > 0 as hiv,
+/*            coalesce(a.hiv, b.hiv) as hiv,*/
             coalesce(a.tobacco_use, b.tobacco_use) as tobacco_use,
             coalesce(a.tobacco_pak_per_day, b.tobacco_pak_per_day) as tobacco_pak_per_day,
             a.smoking_quit_days,
-            coalesce(a.chronic_htn, b.chronic_htn) as chronic_htn,
-            coalesce(a.preg_induced_htn, b.preg_induced_htn) as preg_induced_htn,
-            coalesce(a.diabetes, b.diabetes) as diabetes,
-            coalesce(a.gest_diabetes, b.gest_diabetes) as gest_diabetes,
-            coalesce(a.fetal_growth_restriction, b.fetal_growth_restriction) as fetal_growth_restriction
+			sum(a.chronic_htn, b.chronic_htn) > 0 as chronic_htn,
+/*            coalesce(a.chronic_htn, b.chronic_htn) as chronic_htn,*/
+			sum(a.preg_induced_htn, b.preg_induced_htn) > 0 as preg_induced_htn,
+/*            coalesce(a.preg_induced_htn, b.preg_induced_htn) as preg_induced_htn,*/
+			sum(a.diabetes, b.diabetes) > 0 as diabetes,
+/*            coalesce(a.diabetes, b.diabetes) as diabetes,*/
+			sum(a.gest_diabetes, b.gest_diabetes) > 0 as gest_diabetes,
+/*            coalesce(a.gest_diabetes, b.gest_diabetes) as gest_diabetes,*/
+			sum(a.fetal_growth_restriction, b.fetal_growth_restriction) > 0 as fetal_growth_restriction
+/*            coalesce(a.fetal_growth_restriction, b.fetal_growth_restriction) as fetal_growth_restriction*/
     from 
         &mat_info_epic_table. as a
         full join

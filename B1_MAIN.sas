@@ -24,7 +24,10 @@ Outputs: b1_ga_table - table with gestational ages,
 libname famdat  "&ServerPath.\InputData";
 libname epic "&ServerPath.\InputData\epic720";
 libname uslib "&ServerPath.\InputData\Ultrasound";
-libname outlib "&ServerPath.\B1Data";
+libname outlib "&ServerPath.\B1Data928";
+
+**** USE R4 TO INCLUDE STUDIES PRIO TO 2012? ****;
+%let USE_R4_STUDIES = 1;
 
 **** Path where the sas programs reside in ********;
 %let MainPath= &ServerPath.\USFAMLIData;
@@ -80,7 +83,7 @@ libname outlib "&ServerPath.\B1Data";
 %include "&MainPath/B1_dataset_processing.sas";
 
 **** Create gestational ages ********;
-%include "&MainPath/FAMLI_GA/B1_MAIN_create_ga.sas";
+%include "&MainPath/FAMLI_GA/B1_MAIN_create_goa.sas";
 
 **** Create maternal information ********;
 %include "&MainPath/FAMLI_Clinical/B1_MAIN_create_clinical.sas";
@@ -118,3 +121,64 @@ run;
 
 proc delete data = full_join;
 run;
+
+* Create the table that has ultrasounds for UNC-delivered pregnancies and had antenatal care;
+
+
+proc sql;
+select "Number of pregnancies overall:", count(*) from (select distinct PatientID, episode_edd from outlib.b1_full_table where not missing(episode_edd));
+select "Number of pregnancies PNDB:", count(*) from (select distinct PatientID, episode_edd from outlib.b1_full_table where edd_source="PNDB" and not missing(episdoe_edd));
+
+
+proc sql;
+create table outlib.b1_studies_with_del as
+select * from outlib.b1_full_table
+where not missing(delivery_date);
+
+select 'Number of studies with delivery data available: ', count(*) from outlib.b1_studies_with_del;
+select 'Number of pregnancies:', count(*) from  (select distinct PatientID, episode_edd from outlib.b1_studies_with_del where not missing(episode_edd));
+
+
+proc sql;
+create table delivery_encounters as
+select distinct a.filename, a.PatientID, a.delivery_date, 
+                a.DOC,
+                b.pat_enc_csn_id
+from
+    outlib.b1_full_table as a
+    inner join
+    epic.medications as b
+on
+    a.PatientID  = b.pat_mrn_id
+    and datepart(b.order_inst) >= a.delivery_date 
+    and datepart(b.order_inst) <= a.delivery_date + 1
+    and b.med_type = 'INPATIENT MEDICATION'
+;
+
+create table rpr_matches as
+select distinct a.filename, a.PatientID, a.delivery_date
+from 
+    delivery_encounters as a
+    inner join
+    epic.labs as b
+on
+    a.PatientID = b.pat_mrn_id
+    and b.pat_enc_csn_id not in (select distinct pat_enc_csn_id from delivery_encounters)
+    and prxmatch('/^(RPR|RPR Titer)/', b.lab_name) > 0
+    and datepart(b.result_time) <= a.delivery_date
+    and datepart(b.result_time) >= a.DOC
+;
+
+proc sql;
+create table outlib.b1_selected_studies
+as select * from outlib.b1_full_table where filename in (select filename from rpr_matches)
+or edd_source='PNDB';
+;
+
+select 'The number of studies selected', count(*) from outlib.b1_selected_studies;
+select 'PNDB studies out of these:', count(*) from outlib.b1_selected_studies where edd_source='PNDB';
+select 'Number of pregnancies above:', count(*) from (select distinct PatientID, episode_edd from outlib.b1_selected_studies where not missing(episode_edd));
+select 'Number of PNDB pregnancies above:', count(*) from (select distinct PatientID, episode_edd from outlib.b1_selected_studies where edd_source='PNDB' and not missing(episode_edd));
+
+proc sql;
+select 'Number of patients', count(*) from (select distinct PatientID from outlib.b1_full_table);
