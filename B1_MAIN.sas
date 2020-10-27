@@ -80,6 +80,12 @@ libname outlib "&ServerPath.\B1Data928";
 %let biom_final_output_table = outlib.b1_biom;
 %let biom_subset_measures = outlib.b1_biom_subset_measures;
 
+************************************************************;
+************************************************************;
+************** START PROCESSING ****************************;
+************************************************************;
+************************************************************;
+
 **** create subset ********;
 %include "&MainPath/B1_dataset_processing.sas";
 
