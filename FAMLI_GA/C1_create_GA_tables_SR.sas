@@ -201,6 +201,12 @@ delete * from &sr_ga_table. where StudyID in (select StudyID from counts where c
 select '# of observations in ga table: ', count(*) from &sr_ga_table.;
 select '# of studies in ga table: ', count(*) from (select distinct StudyID from &sr_ga_table.);
 
+proc sql;
+select '# of observations in ga table: ', count(*) from &sr_ga_table.;
+select '# of studies in ga table: ', count(*) from (select distinct StudyID from &sr_ga_table.);
+select '# of patients in the ga table: ', count(*) from (select distinct PatientID from &sr_ga_table.);
+select '# of pregnancies: ', count(*) from (select distinct PatientID, edd from &sr_ga_table.);
+
 delete * from &c1_studies. where StudyID in (select StudyID from counts where count > 1);
 
 
