@@ -11,6 +11,7 @@ The 'alert' field will have either of the following notes:
 'non-singleton', 'non-singleton; non-fetal ultrasound', {none} - everything else 
 */
 
+%if &ONLY_BIOMETRY.=1 %then %do;
 proc sql noprint; 
 create table &famli_table. as
     select *
@@ -25,6 +26,22 @@ create table &famli_table. as
     lastsrofstudy=1 and 
     anybiometry=1
 ;
+%end;
+%else %do;
+proc sql noprint; 
+create table &famli_table. as
+    select *
+    from &maintablename.
+    where 
+    (
+        missing(alert) or 
+        alert = 'age < 18 years' or
+        alert = 'age < 18 years; non-singleton' or
+        alert = 'non-singleton'
+    ) and 
+    lastsrofstudy=1
+;
+%end;
 
 /* This will store instances of a structured report*/
 proc sql noprint;

@@ -28,6 +28,7 @@ libname outlib "&ServerPath.\B1Data928";
 
 **** USE R4 TO INCLUDE STUDIES PRIO TO 2012? ****;
 %let USE_R4_STUDIES = 1;
+%let ONLY_BIOMETRY = 1;
 
 **** Path where the sas programs reside in ********;
 %let MainPath= &ServerPath.\USFAMLIData;
