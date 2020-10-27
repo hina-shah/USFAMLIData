@@ -1,31 +1,47 @@
 
-libname famdat  "F:\Users\hinashah\SASFiles";
-libname epic "F:\Users\hinashah\SASFiles\epic720";
-libname uslib 'F:\Groups\Restricted_access_data\Ultrasound\';
-libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
+
+/*
+********************************
+CHANGE THE PATH BELOW TO POINT TO THE CORRECT INPUT AND OUTPUT FOLDERS
+********************************
+*/
+%let ServerPath = F:\Users\hinashah\SASFiles;
+%let OutlibPath = &ServerPath.\PolyOutput1019;
+
+libname famdat  "&ServerPath.\InputData";
+libname epic "&ServerPath.\InputData\epic720";
+libname uslib "&ServerPath.\InputData\Ultrasound";
+libname outlib "&OutlibPath.";
+libname polylib '&ServerPath.\Polyhydramnios';
+
+
+**** USE R4 TO INCLUDE STUDIES PRIO TO 2012? ****;
+%let USE_R4_STUDIES = 0; * Do not need to use R4 since it does not have AFI values;
+%let ONLY_BIOMETRY = 0;
 
 **** Path where the sas programs reside in ********;
-%let HomePath = F:\Users\hinashah\SASFiles;
-%let MainPath= &HomePath.\USFAMLIData;
-%let ReportsOutputPath = &HomePath.\Polyhydramnios;
-%let maintablename = famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
-%let pndb_table = pndb_famli_records_with_matches;
-%let r4_table = unc_famli_r4data20190820;
+%let MainPath= &ServerPath.\USFAMLIData;
+%let ReportsOutputPath = &ServerPath.\Polyhydramnios;
+
+*************** INPUT Datasets ********************;
+%let maintablename = famdat.famli_b1_dicom_sr; /* This is the original SR generated table. Copied.*/
+%let pndb_table = famdat.pndb_famli_records_with_matches; /*This has all the data from PNDB*/
+%let r4_table = famdat.unc_famli_r4data20190820;
 
 ************** OVERALL output tables ***************;
-%let famli_table = famdat.famli_b1_subset;
-%let famli_studies = famdat.b1_patmrn_studytm;
+%let famli_table = outlib.famli_b1_subset;
+%let famli_studies = outlib.b1_patmrn_studytm;
 
 * ********************** GA variables *************;
 **** Path where the ga sas programs reside in ********;
 %let GAPath= &MainPath.\FAMLI_GA;
 
 ****** Names of the main tables to be used ********;
-%let epic_ga_table = poly_b1_ga_table_epic;
-%let pndb_ga_table = poly_b1_ga_table_pndb;
-%let r4_ga_table = poly_b1_ga_table_r4;
-%let sr_ga_table = poly_b1_ga_table_sr;
-%let ga_final_table = poly_b1_ga_table;
+%let epic_ga_table = outlib.poly_b1_ga_table_epic;
+%let pndb_ga_table = outlib.poly_b1_ga_table_pndb;
+%let r4_ga_table = outlib.poly_b1_ga_table_r4;
+%let sr_ga_table = outlib.poly_b1_ga_table_sr;
+%let ga_final_table = outlib.poly_b1_ga_table;
 
 ******* Define global values *******;
 %let max_ga_cycle = 308;
@@ -34,31 +50,31 @@ libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
 * ********************** Biometry variables *********;
 **** Path where the biom sas programs reside in ********;
 %let BiomPath= &MainPath.\FAMLI_Biom;
-%let biom_final_output_table = b1_biom_all;
-%let biom_subset_measures = b1_biom_subset_measures;
+%let biom_final_output_table = outlib.b1_biom_all;
+%let biom_subset_measures = outlib.b1_biom_subset_measures;
 
 * ********************** Clinical variables *********;
 **** Path where the clinical sas programs reside in ********;
 %let ClinicalPath= &MainPath.\FAMLI_Clinical;
 
 ****** Names of the main tables to be used ********;
-%let ga_table = poly_b1_ga_table;
+%let ga_table = outlib.poly_b1_ga_table;
 
 ****** Names of output tables to be generated *****;
-%let mat_info_pndb_table = poly_b1_maternal_info_pndb;
-%let mat_info_epic_table = poly_b1_maternal_info_epic;
-%let mat_final_output_table = poly_b1_maternal_info;
+%let mat_info_pndb_table = outlib.poly_b1_maternal_info_pndb;
+%let mat_info_epic_table = outlib.poly_b1_maternal_info_epic;
+%let mat_final_output_table = outlib.poly_b1_maternal_info;
 
 ******* Define global values *******;
-%let max_ga_cycle = 308;
-%let ga_cycle = 280;
 %let min_height = 40;
 %let max_height = 90;
 %let min_weight = 90; /* in lbs */
 %let max_weight = 400; /* in lbs */
 
 **** create subset ********;
-%include "&MainPath/Polyhydramnios/B1_dataset_processing_with_no_biometry.sas";
+/*%include "&MainPath/Polyhydramnios/B1_dataset_processing_with_no_biometry.sas";*/
+
+%include "&MainPath//B1_dataset_processing.sas";
 
 **** Create gestational ages ********;
 %include "&MainPath/FAMLI_GA/B1_MAIN_create_ga.sas";
@@ -69,6 +85,33 @@ libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
 **** Create maternal information ********;
 %include "&MainPath/FAMLI_Clinical/B1_MAIN_create_clinical.sas";
 
+
+proc sql;
+create table full_join as
+    select distinct a.*, b.* 
+    from 
+        &ga_final_table. as a 
+        left join
+        &biom_final_output_table. as b
+    on
+        a.PatientID = b.PatientID and
+        a.studydate = b.studydate and
+        a.filename = b.filename;
+
+create table outlib.b1_full_table as
+    select distinct a.*, b.* 
+    from 
+        full_join as a 
+        left join
+        &mat_final_output_table. as b
+    on
+        a.PatientID = b.PatientID and
+        a.studydate = b.studydate and
+        a.filename = b.filename;
+
+data outlib.b1_full_table;
+set outlib.b1_full_table(drop= episode_working_edd ga_from_edd);
+run;
 
 %macro createEFTable(biometry=, biomvname=, shortname=);
     * read the biometry tags;
@@ -104,7 +147,7 @@ libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
     run;
 
     * Convert data to numerical values, and convert mms to cms;
-    data famdat.&biomvname;
+    data outlib.&biomvname;
     set work.&biomvname;
     run;
 
@@ -117,7 +160,7 @@ libname polylib 'F:\Users\hinashah\SASFiles\Polyhydramnios';
     proc sql noprint;
     select name into :&macroname separated by ', '  
        from dictionary.columns
-         where libname='FAMDAT' and memname='B1_BIOM_ALL' and name contains "&varname";
+         where libname='OUTLIB' and memname='B1_BIOM_ALL' and name contains "&varname";
     quit;
 %mend;
 
@@ -137,14 +180,14 @@ afiq4s,afiq4_
 run;
 
 proc sql;
-create table famdat.polyhydramnios_complete as
-select filename, PatientID, studydate, ga_edd, &mvps, &afiq1s, &afiq2s, &afiq3s, &afiq4s
-from famdat.b1_biom_all
+create table outlib.polyhydramnios_complete as
+select filename, PatientID, studydate, episode_edd, ga_edd, &mvps, &afiq1s, &afiq2s, &afiq3s, &afiq4s
+from outlib.b1_full_table
 where (not missing(mvp_1) or  (not missing(afiq1_1) or not missing(afiq2_1) or not missing(afiq3_1) or not missing(afiq4_1)))
 ;
 quit;
 
-proc datasets lib=famdat memtype=data nolist;
+proc datasets lib=outlib memtype=data nolist;
    modify polyhydramnios_complete;
      attrib _all_ label=' ';
 run;
@@ -152,14 +195,14 @@ run;
 %createEFTable(biometry=Estimated Weight, biomvname=est_fet_wt, shortname=efw_);
 
 proc sql noprint;
-create table famdat.polyhydramnios_with_afi_mvp as 
+create table outlib.polyhydramnios_with_afi_mvp as 
 select a.*, b.efw_1 from
-famdat.polyhydramnios_complete as a left join famdat.est_fet_wt as b
+outlib.polyhydramnios_complete as a left join outlib.est_fet_wt as b
 on
 a.filename=b.filename and a.PatientID= b.PatientID;
 
-data famdat.polyhydramnios_with_afi_mvp;
-set famdat.polyhydramnios_with_afi_mvp;
+data outlib.polyhydramnios_with_afi_mvp;
+set outlib.polyhydramnios_with_afi_mvp;
 label CalcMVP='Calculated MVP';
 label AFI='Amniotic Fluid Index sum';
 label maxafiq1='MaxAFIQuad1';
@@ -177,15 +220,25 @@ AFI = maxafiq1+maxafiq2+maxafiq3+maxafiq4;
 run;
 
 %ds2csv(
-    data=famdat.polyhydramnios_with_afi_mvp,
+    data=outlib.polyhydramnios_with_afi_mvp,
     runmode=b,
-    csvfile=F:/Users/hinashah/SASFiles/polyhydramnios_all.csv   
+    csvfile=&OutlibPath./polyhydramnios_all.csv   
 );
+
+proc sql;	
+create table outlib.polyhydramnios_last_20_weeks as	
+    select * from outlib.polyhydramnios_with_afi_mvp	
+    where ga_edd >= 140;	
+
+select '# of observations with GA>=140:', count(*) from outlib.polyhydramnios_last_20_weeks;
+select '# of Patients with GA>=140:', count(*) from (select distinct PatientID from outlib.polyhydramnios_last_20_weeks);
+select '# of Pregnancies with GA>=140:', count(*) from (select distinct PatientID, episode_edd from outlib.polyhydramnios_last_20_weeks);
+
 
 %include "&MainPath/Polyhydramnios/AddClinicalInformation.sas";
 
-data famdat.poly_with_afi_mvp_clinical;
-set famdat.poly_with_afi_mvp_clinical;
+data outlib.poly_with_afi_mvp_clinical;
+set outlib.poly_with_afi_mvp_clinical;
 label ga_edd='Clinician approved GA';
 label delivery_methdo='Delivery method';
 label delivery_blood_loss='Blood Loss at Delivery';
@@ -200,10 +253,9 @@ label labor_induction='Labor Induction Y/N';
 run;
 
 %ds2csv(
-    data=famdat.poly_with_afi_mvp_clinical,
+    data=outlib.poly_with_afi_mvp_clinical,
     runmode=b,
-    csvfile=F:/Users/hinashah/SASFiles/polyhydramnios_all_clinical.csv   
+    csvfile=&ServerPath./polyhydramnios_all_clinical.csv   
 );
 
 %include "&MainPath/Polyhydramnios/Polyhydramnios_Analysis.sas";
-

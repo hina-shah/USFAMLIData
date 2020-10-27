@@ -29,7 +29,7 @@ select pat_mrn_id, episode_id, delivery_dttm_utc,
 		when prxmatch('/naloxone/', lower(delivery_resusitation_list))>0 then 'NALOXONE'
 		else 'OTHER'
 	end as delivery_resusitation,
-	delivery_blood_loss, 
+	delivery_blood_loss>1000 as delivery_blood_loss,
 	apgar1, apgar5, 
 	living_status,
 	baby_icu_yn
@@ -75,9 +75,8 @@ select distinct mom_mrn_id, effective_date_dt, prxmatch('/^Q[0-9]*/', ref_bill_c
 ;
 
 /**** PNDB data ****/
-%let pndb_table = pndb_famli_records_with_matches;
 data pndb_preprocess (keep= HospNum Mom_EpicMRN MRN delivery_date delivery_method delivery_blood_loss);
-set famdat.&pndb_table;
+set &pndb_table;
 
 format delivery_date mmddyy10.;
 if not missing(Mom_EpicMRN) then
@@ -93,14 +92,19 @@ run;
 /***** Combine EPIC and PNDB ****/
 proc sql;
 create table pndb_epic_delivery_data as 
-	select coalesce(a.pat_mrn_id, b.MRN) as PatientID, coalesce( datepart(a.delivery_dttm_utc), b.delivery_date) as delivery_date format mmddyy10.,
-	coalesce(a.delivery_method, b.delivery_method) as delivery_method, coalesce(a.delivery_blood_loss, b.delivery_blood_loss) as delivery_blood_loss,
+	select distinct coalesce(a.pat_mrn_id, b.MRN) as PatientID, coalesce( datepart(a.delivery_dttm_utc), b.delivery_date) as delivery_date format mmddyy10.,
+	coalesce(a.delivery_method, b.delivery_method) as delivery_method, sum(a.delivery_blood_loss, b.delivery_blood_loss) > 0 as post_partum_hemorrhage,
 	a.meconium, a.cord_prolapse, a.delivery_resusitation, a.apgar1, a.apgar5, a.living_status, a.baby_icu_yn
 	from 
 		epic_delivery_columns as a
 		full join
 		pndb_preprocess as b
-	on a.pat_mrn_id = b.MRN and datepart(a.delivery_dttm_utc) =b.delivery_date
+	on a.pat_mrn_id = b.MRN 
+	and 
+	b.delivery_date <= datepart(a.delivery_dttm_utc) + 15
+	and
+	b.delivery_date >= datepart(a.delivery_dttm_utc) - 15
+/*	and datepart(a.delivery_dttm_utc) = b.delivery_date*/
 ;
 
 /********* Add information to the clinical data table **********/
@@ -109,9 +113,9 @@ proc sql;
 create table poly_b1_maternal_info as
 select distinct a.filename, a.PatientID, a.studydate, a.ga_from_edd, a.delivery_date, a.birth_wt_gms, a.birth_ga_days, 
 	a.chronic_htn, a.preg_induced_htn, a.diabetes, a.gest_diabetes,
-	b.delivery_method, b.delivery_blood_loss, b.meconium, b.cord_prolapse, b.delivery_resusitation, b.apgar1, b.apgar5, b.living_status, b.baby_icu_yn
+	b.delivery_method, b.post_partum_hemorrhage, b.meconium, b.cord_prolapse, b.delivery_resusitation, b.apgar1, b.apgar5, b.living_status, b.baby_icu_yn
 from 
-	famdat.poly_b1_maternal_info as a 
+	&mat_final_output_table. as a 
 	left join
 	pndb_epic_delivery_data as b 
 on 
@@ -203,11 +207,11 @@ select a.*, b.*
 ;
 
 proc sql;
-create table famdat.clinical_all_together as
+create table outlib.clinical_all_together as
 select distinct a.filename, a.PatientID, a.studydate, a.ga_from_edd, a.delivery_date, a.birth_wt_gms, a.birth_ga_days, 
 	a.chronic_htn, a.preg_induced_htn, a.diabetes, a.gest_diabetes,
-	a.delivery_method, a.delivery_blood_loss, a.cord_prolapse, a.delivery_resusitation, a.labor_induction, a.apgar1, a.apgar5,
-	a.living_status, a.baby_icu_yn, coalesce(a.meconium, b.meconium_diag) as meconium, 
+	a.delivery_method, a.post_partum_hemorrhage, a.cord_prolapse, a.delivery_resusitation, a.labor_induction, a.apgar1, a.apgar5,
+	a.living_status, a.baby_icu_yn, sum(a.meconium, b.meconium_diag)>0 as meconium, 
 	b.prem_rupture,  b.congenital_anomalies
 from 
 	mat_info_labor as a
@@ -219,19 +223,17 @@ on
 ;
 
 proc sql;
-create table famdat.poly_with_afi_mvp_clinical as
+create table outlib.poly_with_afi_mvp_clinical as
 select distinct
 	o.*,  a.delivery_date, a.birth_wt_gms, a.birth_ga_days, 
 	a.chronic_htn, a.preg_induced_htn, a.diabetes, a.gest_diabetes,
-	a.delivery_method, a.delivery_blood_loss, a.cord_prolapse, a.delivery_resusitation, a.labor_induction, a.apgar1, a.apgar5,
+	a.delivery_method, a.post_partum_hemorrhage, a.cord_prolapse, a.delivery_resusitation, a.labor_induction, a.apgar1, a.apgar5,
 	a.living_status, a.baby_icu_yn, a.meconium, 
 	a.prem_rupture,  a.congenital_anomalies
-from famdat.polyhydramnios_with_afi_mvp as o
+from outlib.polyhydramnios_with_afi_mvp as o
 	left join 
-	famdat.clinical_all_together as a
+	outlib.clinical_all_together as a
 on
 	o.PatientID = a.PatientID 
 	and a.filename = o.filename
 ;
-
-
